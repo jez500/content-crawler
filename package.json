@@ -1,0 +1,26 @@
+{
+  "name": "content-crawler",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "crawl": "node index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "cheerio": "^1.0.0-rc.3",
+    "extend": "^3.0.2",
+    "file-system": "^2.2.2",
+    "fs": "0.0.1-security",
+    "fs-extra": "^7.0.1",
+    "jquery": "^3.4.0",
+    "jsdom": "^14.0.0",
+    "lodash": "^4.17.11",
+    "supercrawler": "^1.7.0",
+    "url-parse": "^1.4.6",
+    "vue": "^2.6.10",
+    "vue-material": "^1.0.0-beta-10.2"
+  }
+}

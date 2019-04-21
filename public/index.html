@@ -1,0 +1,193 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta content="width=device-width,initial-scale=1,minimal-ui" name="viewport">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700,400italic|Material+Icons">
+  <link rel="stylesheet" href="https://unpkg.com/vue-material@beta/dist/vue-material.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/vue-material@beta/dist/theme/default.css">
+  <style>
+    .md-card {
+      margin-bottom: 1em;
+    }
+    h1 {
+      text-transform: uppercase;
+    }
+    .md-app {
+      height: 100vh;
+    }
+    .md-drawer {
+      width: 300px;
+      max-width: calc(100vw - 125px);
+    }
+    code {
+      padding: 2px 3px;
+      background: #eee;
+      border-radius: 3px;
+      border: 1px solid #ccc;
+    }
+  </style>
+</head>
+
+<body>
+<div id="app">
+
+  <div class="page-container">
+
+    <md-app>
+      <md-app-toolbar class="md-primary">
+        <md-button class="md-icon-button" @click="toggleMenu" v-if="!menuVisible">
+          <md-icon>menu</md-icon>
+        </md-button>
+        <span class="md-title">{{ results.domain }}</span>
+      </md-app-toolbar>
+
+      <md-app-drawer :md-active.sync="menuVisible" md-persistent="full">
+        <md-toolbar class="md-transparent" md-elevation="0">
+          <span class="md-title">Crawls</span>
+
+          <div class="md-toolbar-section-end">
+            <md-button class="md-icon-button md-dense" @click="toggleMenu">
+              <md-icon>keyboard_arrow_left</md-icon>
+            </md-button>
+          </div>
+        </md-toolbar>
+
+        <md-list>
+          <md-list-item v-for="nav in index" @click="getSite(nav.file)" :key="nav.file">
+            <md-icon>bookmark_border</md-icon>
+            <span class="md-list-item-text">{{ nav.title }}</span>
+          </md-list-item>
+
+        </md-list>
+      </md-app-drawer>
+
+      <md-app-content>
+
+        <div v-if="indexLoaded && siteLoaded">
+
+          <md-table v-model="overview">
+            <md-table-toolbar>
+              <h2 class="md-title">Overview</h2>
+            </md-table-toolbar>
+
+            <md-table-row slot="md-table-row" slot-scope="{ item }">
+              <md-table-cell md-label="Title" md-sort-by="title"><a :href="'#' + item.id">{{ item.title }}</a></md-table-cell>
+              <md-table-cell md-label="Count" md-sort-by="url">{{ item.count }}</md-table-cell>
+            </md-table-row>
+          </md-table>
+
+          <md-divider></md-divider><br /><br />
+
+          <md-table v-model="pages">
+            <md-table-toolbar>
+              <h2 class="md-title" id="pages">Pages</h2>
+            </md-table-toolbar>
+
+            <md-table-row slot="md-table-row" slot-scope="{ item }">
+              <md-table-cell md-label="Title" md-sort-by="title"><a :href="item.url">{{ item.title }}</a></md-table-cell>
+              <md-table-cell md-label="Url" md-sort-by="url">{{ item.url }}</md-table-cell>
+              <md-table-cell md-label="Size" md-sort-by="size">{{ item.size }}KB</md-table-cell>
+              <md-table-cell md-label="Images">{{ item.images .length }}</md-table-cell>
+              <md-table-cell md-label="Forms">{{ item.forms.length }}</md-table-cell>
+            </md-table-row>
+          </md-table>
+
+          <md-divider></md-divider><br /><br />
+
+          <md-table v-if="images">
+            <md-table-toolbar>
+              <h2 class="md-title" id="images">Images</h2>
+            </md-table-toolbar>
+
+            <md-table-row slot="md-table-row" v-for="image in images">
+              <md-table-cell md-label="Image" md-sort-by="image"><a :href="image" target="_blank">{{ image }}</a></md-table-cell>
+            </md-table-row>
+          </md-table>
+
+          <md-divider></md-divider><br /><br />
+
+          <md-table v-if="documents">
+            <md-table-toolbar>
+              <h2 class="md-title" id="documents">Documents</h2>
+            </md-table-toolbar>
+
+            <md-table-row slot="md-table-row" v-for="doc in documents">
+              <md-table-cell md-label="Document" md-sort-by="image"><a :href="doc" target="_blank">{{ doc }}</a></md-table-cell>
+            </md-table-row>
+          </md-table>
+
+        </div>
+
+        <div v-else>
+          <h2 class="md-title">How to crawl a site</h2>
+          <p>
+            Run <code>npm run crawl FULL_URL_OF_SITE_TO_CRAWL</code> to crawl a site.</p>
+          <p>
+            After a site has been crawled refresh this page and it should appear in the sidebar. Click the site to see all the pages on the site
+          </p>
+        </div>
+
+      </md-app-content>
+    </md-app>
+
+  </div>
+
+</div>
+
+<script src="https://unpkg.com/vue"></script>
+<script src="https://unpkg.com/vue-material@beta"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js"></script>
+<script>
+  Vue.use(VueMaterial.default)
+
+  new Vue({
+    el: '#app',
+    data: {
+      menuVisible: true,
+      jsonDir: '/sites/',
+      indexLoaded: false,
+      siteLoaded: false,
+      results: {},
+      pages: [],
+      overview: [],
+      images: [],
+      index: {},
+    },
+    mounted: function() {
+      axios.get(this.jsonDir + 'index.json', {})
+        .then((data) => {
+          this.indexLoaded = true;
+          this.index = _.toArray(data.data);
+        })
+    },
+    methods: {
+      getOverview: function() {
+        this.overview = [
+          { title: 'Pages', count: this.results.pages.length, id: 'pages' },
+          { title: 'Images', count: this.results.images.length, id: 'images' },
+          { title: 'Documents', count: this.results.documents.length, id: 'documents' },
+          { title: 'Forms', count: this.results.forms.length, id: 'forms' },
+        ]
+      },
+      toggleMenu () {
+        this.menuVisible = !this.menuVisible
+      },
+      getSite(file) {
+        axios.get(this.jsonDir + file, {})
+          .then((data) => {
+            this.results = data.data;
+            this.pages = this.results.pages;
+            this.images = this.results.images;
+            this.documents = this.results.documents;
+            this.forms = this.results.forms;
+            this.getOverview();
+            this.siteLoaded = true;
+          })
+      }
+    }
+  })
+</script>
+</body>
+</html>
