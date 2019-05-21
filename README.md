@@ -12,6 +12,9 @@ Run `npm install` to include dependencies.
 Run `npm run crawl FULL_URL_OF_SITE_TO_CRAWL` replacing `FULL_URL_OF_SITE_TO_CRAWL` with the start url of the site
 you want to crawl. eg `npm run crawl http://example.com/`.
 
+You can optionally pass a second argument that will filter only urls that contain this string. eg
+`npm run crawl http://example.com/foo example.com/foo`
+
 ## Viewing crawl results
 
 After a crawl is complete, visit `/public/index.html` to browse the crawl results in a web browser.

@@ -24,9 +24,16 @@ const app = class {
       domain: this.startUrl.hostname,
       protocol: this.startUrl.protocol,
       interval: 1000,
-      saveDir: './public/sites'
+      saveDir: './public/sites',
+      urlFilter: '',
     };
     this.settings = extend(this.settings, settings);
+
+    // Url filter.
+    if (process.argv[3]) {
+      this.settings.urlFilter = process.argv[3];
+      console.log('Filtering urls to only those containing "' + this.settings.urlFilter + '"');
+    }
 
     // Structure for JSON.
     this.db = {
@@ -76,9 +83,14 @@ const app = class {
    * Start a new crawl.
    */
   startCrawl() {
+    let filter = (this.settings.urlFilter ? this.settings.urlFilter : this.settings.domain);
+
     // Restrict to this domain only.
     this.crawler.addHandler("text", supercrawler.handlers.htmlLinkParser({
-      hostnames: [this.settings.domain]
+      hostnames: [this.settings.domain],
+      urlFilter: (url, context_url) => {
+        return this.urlFilter(url, context_url);
+      }
     }));
 
     // Handle links.
@@ -101,6 +113,14 @@ const app = class {
   }
 
   /**
+   * Filter urls that contain a string.
+   */
+  urlFilter(url, context_url) {
+    // If urlFilter settings exists, check url contains it.
+    return !(this.settings.urlFilter && url.indexOf(this.settings.urlFilter) === -1);
+  }
+
+  /**
    * Handle text mime types (normal html pages).
    */
   textHander(context) {
@@ -112,7 +132,8 @@ const app = class {
       contentType: context.contentType,
       size: Math.round((Buffer.byteLength(context.body) / 1024)),
       forms: this.getForms(context),
-      images: this.getImages(context)
+      images: this.getImages(context),
+      body: context.$('body').text(),
     };
     this.db.pages.push(res);
   }
