@@ -1,3 +1,4 @@
 /node_modules
 /public/sites
+package-lock.json
 .idea
