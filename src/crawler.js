@@ -9,9 +9,13 @@ const Crawler = class {
 
   /**
    * Class constructor.
+   * @param string startUrl
+   *  - The url to start crawling from
+   * @param {Object} settings
+   *  - The list of settings to apply to this web crawl.
    */
   constructor(startUrl = '', settings = {}) {
-    // Ensure a url to parse
+    // Ensure there is a valid url to crawl.
     if (!startUrl) {
       console.error('You must provide a start url as the first argument!');
       return;
@@ -35,12 +39,21 @@ const Crawler = class {
       robots: true,
       authKey: '',
     };
+
+    // Merge the default settings with those passed to the constructor.
     this.settings = extend(this.settings, settings);
+
+    // We specify the delay in seconds, but we need to convert it to milli seconds.
     this.settings.interval = 1000 * this.settings.delay;
+
+    // Get the instance of the storage for this class instance.
     this.storage = new storage.Storage(this.settings.saveDir);
 
+    // Verify there is a valid auth key.
     if (!this.settings.authKey) {
+      // Report an error so it is shown in the page.
       this.log('Auth key is required.');
+      // Abort.
       return;
     } else {
       // Only allow valid filename characters.
@@ -51,6 +64,7 @@ const Crawler = class {
     if (this.settings.urlFilter) {
       this.log('Filtering urls to only those containing "' + this.settings.urlFilter + '"');
     }
+
     // Exclude filter.
     if (this.settings.excludeFilter) {
       this.log('Filtering urls to only those not containing "' + this.settings.excludeFilter + '"');
@@ -88,36 +102,49 @@ const Crawler = class {
       this.crawler.stop();
     });
 
+    // Default the completeHandler to the log function.
     this.completeHandler = this.log;
   }
 
+    /**
+     * Set a function to call when the crawl is complete.
+     *
+     * @param {Function} handler
+     */
   setCompleteHandler(handler) {
     this.completeHandler = handler;
   }
 
   /**
-   * Return instance of crawler.
+   * Return instance of crawler (the supercrawler).
+   *
+   * @return {supercrawler.Crawler}
    */
   getCrawler() {
     let agent = "Mozilla/5.0 (compatible; supercrawler/1.0; +https://github.com/brendonboshell/supercrawler)";
 
+    // Create an instance using as many of our settings as possible.
     let instance = new supercrawler.Crawler({
       interval: this.settings.interval,
       concurrentRequestsLimit: 1,
       userAgent: agent,
       robotsEnabled: this.settings.robots,
       request: {
-        gzip: false
+        gzip: false  // Disable gzip compression because it's unreliable in the web version.
       }
     });
 
     // Patch the downloader to allow CORS requests using a proxy.
     instance._proxyUrl = this.settings.proxy;
+
+    // We are monkey patching the download function.
     instance._downloadUrlRaw = instance._downloadUrl;
     instance._downloadUrl = function(url, followRedirect) {
       return this._downloadUrlRaw(this._proxyUrl + url, followRedirect);
     }.bind(instance);
+
     instance.on('crawledurl', (url, errorCode, statusCode) => {
+      // Report failed downloads.
       if (errorCode) {
         this.log('Error fetching URL: ' + url + ' => ' + errorCode);
       }
@@ -148,6 +175,7 @@ const Crawler = class {
       this.applicationHandler(context);
     });
 
+    // Handle images.
     this.crawler.addHandler("image", (context) => {
       let buffer = new Buffer(context.body);
       this.db.images[context.url] = {
@@ -167,7 +195,11 @@ const Crawler = class {
   }
 
   /**
-   * Filter urls that contain a string.
+   * Filter urls that contain a string and don't contain another string.
+   * @param {String} url
+   * @param {String} context_url
+   * return {boolean}
+   *  - Use this URL if true.
    */
   urlFilter(url, context_url) {
     // If urlFilter settings exists, check url contains it.
@@ -182,7 +214,9 @@ const Crawler = class {
   }
 
   /**
-   * Walk the DOM and remove all empty nodes.
+   * Apply some cleaning logic to the content.
+   *
+   * We want to separate the actual content from the structure of the site.
    *
    * @param {jQuery}
    *   node to process.
@@ -209,7 +243,7 @@ const Crawler = class {
       if (this.settings.removeAttributes) {
         let attributes = node[0].attribs;
         let name = '';
-        let common = ['href', 'src', 'alt', 'role', 'name', 'value', 'type'];
+        let common = ['href', 'src', 'alt', 'role', 'name', 'value', 'type', 'title', 'width', 'height'];
 
         for (name in attributes) {
           if (!common.includes(name)) {
@@ -221,6 +255,7 @@ const Crawler = class {
         }
       }
 
+      // We are walking the tree, cleaning one element at a time.
       let childIndex = 0,
           child = null,
           children = node.children();
@@ -230,6 +265,7 @@ const Crawler = class {
       }.bind(this));
     }
 
+    // Deeply nested divs and span with no meaning to the structure are hard to deal with.
     if (this.settings.simplifyStructure) {
       if ((node[0].tagName == 'div' || node[0].tagName == 'span') && node.parent().length != 0) {
         node.replaceWith(node.children());
@@ -252,12 +288,15 @@ const Crawler = class {
     }
 
     // Strip some common things.
-    main.find('nav').remove();
-    main.find('header').remove();
-    main.find('footer').remove();
-    main.find('script').remove();
-    main.find('noscript').remove();
-    main.find('style').remove();
+    if (this.settings.simplifyStructure) {
+      main.find('nav').remove();
+      main.find('.navbar').remove();
+      main.find('header').remove();
+      main.find('footer').remove();
+      main.find('script').remove();
+      main.find('noscript').remove();
+      main.find('style').remove();
+    }
 
     // If there is a main region, jump to it.
     let sub = main.find('[role=main]');
@@ -265,6 +304,7 @@ const Crawler = class {
       main = sub;
     }
 
+    // Perform deep cleaning on the content.
     let mainText = this.extractContent(main).html();
 
     let res = {
@@ -276,6 +316,8 @@ const Crawler = class {
       images: this.getImages(context),
       body: mainText,
     };
+
+    // The result of the page cleaning is pushed to the db pages array.
     this.db.pages.push(res);
   }
 
@@ -283,11 +325,17 @@ const Crawler = class {
    * Handle application mime types.
    */
   applicationHandler(context) {
+    // An example is a feed url.
     this.db.documents[context.url] = 'document';
   }
 
   /**
-   * Get the images found on the page.
+   * Get the images found on the page. This walks the DOM and appends images
+   * to the list of urls to fetch.
+   *
+   * @param {Object} context
+   * @return {Array}
+   *   - An array with the urls as keys and metadata as values.
    */
   getImages(context) {
     let images = {}, count = 0, dataUrl = 0;
@@ -300,6 +348,8 @@ const Crawler = class {
       }
 
       imgUrl.trim();
+
+      // Data urls don't need to be downloaded, just save them now.
       if (imgUrl.slice(0, 5) === 'data:') {
         dataUrl = context.url + '#data' + (count++);
         // data:
@@ -310,6 +360,7 @@ const Crawler = class {
         this.log('Image data shortcut:', this.db.images[dataUrl]);
       }
       else {
+        // Relative urls need to be made full.
         if (imgUrl.slice(0, 4) != 'http') {
           if (imgUrl[0] == '/') {
             imgUrl = imgUrl.slice(1);
@@ -317,13 +368,16 @@ const Crawler = class {
           imgUrl = this.startUrl + imgUrl;
         } 
 
+        // Query strings for images are likely duplicates.
         imgUrl.substring(imgUrl.indexOf("?") + 1);
 
+        // Apply same url filtering to images.
         let allow = this.urlFilter(imgUrl, null);
 
         if (allow) {
           this.log('Image discovered: ' + imgUrl);
           if (this.settings.downloadImages) {
+            // Queue it.
             this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
             images[imgUrl] = { url: imgUrl };
           } else {
@@ -341,6 +395,8 @@ const Crawler = class {
 
   /**
    * Get the forms found on the page.
+   * @param {Object} context
+   * @return {Array}
    */
   getForms(context) {
     let forms = [];
@@ -375,6 +431,7 @@ const Crawler = class {
    */
   updateIndex() {
     this.prepareSaveDir();
+    // The authKey is used in the index path so different clients only see their own sites.
     let fileName = this.settings.saveDir + '/' + this.settings.authKey + '-index.json';
     let request = this.storage.readJson(fileName);
     request.then(function (result) {
@@ -383,6 +440,7 @@ const Crawler = class {
       }
 
       result[this.settings.domain] = {title: this.settings.domain, file: this.settings.domain + '.json'};
+      // Write the new list of sites.
       this.storage.writeJson(fileName, result)
         .then(() => {
           this.log('Index updated');
@@ -403,6 +461,12 @@ const Crawler = class {
     return (typeof window != 'undefined');
   }
 
+  /**
+   * Log a message.
+   *
+   * This log function works like console.log, except for the web version it
+   * will write the content directly to the page.
+   */
   log() {
     if (this.isWeb()) {
       let element = document.getElementById('console');
