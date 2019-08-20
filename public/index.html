@@ -16,6 +16,14 @@
     .md-app {
       height: 100vh;
     }
+    md-app {
+      display: none;
+    }
+    #console {
+      max-height: 25em;
+      overflow: auto;
+      background-color: #efefef ! important;
+    }
     .md-drawer {
       width: 300px;
       max-width: calc(100vw - 125px);
@@ -44,7 +52,7 @@
 
       <md-app-drawer :md-active.sync="menuVisible" md-persistent="full">
         <md-toolbar class="md-transparent" md-elevation="0">
-          <span class="md-title">Crawls</span>
+          <span class="md-title">Sites</span>
 
           <div class="md-toolbar-section-end">
             <md-button class="md-icon-button md-dense" @click="toggleMenu">
@@ -53,14 +61,38 @@
           </div>
         </md-toolbar>
 
+        <div v-if="indexLoaded">
         <md-list>
+          <md-list-item>
+            <h4 class="md-subhead">Server</h4>
+          </md-list-item>
           <md-list-item v-for="nav in index" @click="getSite(nav.file)" :key="nav.file">
             <md-icon>bookmark_border</md-icon>
-            <span class="md-list-item-text">{{ nav.title }}</span>
+            <span class="md-list-item-text"><a href='#'>{{ nav.title }}</a></span>
           </md-list-item>
-
         </md-list>
+
+        <md-list>
+          <md-list-item>
+            <h4 class="md-subhead">Local</h4>
+          </md-list-item>
+          <md-list-item v-for="nav in storage" :key="nav.file">
+            <md-icon>bookmark_border</md-icon>
+            <span class="md-list-item-text" @click="getStorage(nav.file)"><a href='#'>{{ nav.title }}</a></span>
+            <md-button class="md-icon-button" @click="removeStorage(nav.title)"><md-icon>delete</md-icon></md-button>
+          </md-list-item>
+          <md-list-item>
+          <label class="md-list-item-text">
+          <md-button @click="homePage" class="md-raised md-button">
+              Add new website
+          </md-button>
+          </label>
+          </md-list-item>
+        </md-list>
+        </div>
+
       </md-app-drawer>
+
 
       <md-app-content>
 
@@ -85,7 +117,7 @@
             </md-table-toolbar>
 
             <md-table-row slot="md-table-row" slot-scope="{ item }">
-              <md-table-cell md-label="Title" md-sort-by="title"><a :href="item.url">{{ item.title }}</a></md-table-cell>
+              <md-table-cell md-label="Title" md-sort-by="title"><a :href="item.url" :title="item.body">{{ item.title }}</a></md-table-cell>
               <md-table-cell md-label="Url" md-sort-by="url">{{ item.url }}</md-table-cell>
               <md-table-cell md-label="Size" md-sort-by="size">{{ item.size }}KB</md-table-cell>
               <md-table-cell md-label="Images">{{ item.images .length }}</md-table-cell>
@@ -101,7 +133,7 @@
             </md-table-toolbar>
 
             <md-table-row slot="md-table-row" v-for="image in images">
-              <md-table-cell md-label="Image" md-sort-by="image"><a :href="image" target="_blank">{{ image }}</a></md-table-cell>
+              <md-table-cell md-label="Image" md-sort-by="image"><a :href="image.url" target="_blank"><img :src="image.data" style="max-height: 5em;"> <br/> {{ image.url }}</a></md-table-cell>
             </md-table-row>
           </md-table>
 
@@ -117,15 +149,72 @@
             </md-table-row>
           </md-table>
 
+          <md-divider></md-divider><br /><br />
+
+          <!-- Provide a way to extract the json so you can save it to a file -->
+          <md-table>
+            <md-table-toolbar>
+              <h2 class="md-title" id="documents">Raw JSON</h2>
+            </md-table-toolbar>
+            <md-field>
+              <md-textarea id="raw" rols="10" cols="20" v-model="rawJSON" :readonly="true"></textarea>
+            </md-field>
+          </md-table>
+
         </div>
 
+        <div v-if="!indexLoaded">
+          <h2 class="md-title">Authenticate
+          <img src='doghouse.jpg' width="80" alt="" role="presentation"/></h2>
+          <p>To use this site you will require a valid login code from Doghouse Agency.</p>
+          <p>Enter the login code here</p>
+          <div layout="row" layout-align="center center">
+            <input class="md-field" v-model="authKey" type="text" name="authKey" size="12">
+            <md-button @click="authenticate" class="md-primary">
+              Login
+            </md-button>
+          </div>
+        </div>
         <div v-else>
-          <h2 class="md-title">How to crawl a site</h2>
-          <p>
-            Run <code>npm run crawl FULL_URL_OF_SITE_TO_CRAWL</code> to crawl a site.</p>
-          <p>
-            After a site has been crawled refresh this page and it should appear in the sidebar. Click the site to see all the pages on the site
-          </p>
+          <div v-if="!siteLoaded">
+            <h2 class="md-title">How to crawl a site</h2>
+            <form onsubmit="document.getElementById('crawl').click(); return false;">
+              <p>
+                Enter the address of a site to crawl and press "Crawl" to add it to the list.
+              </p>
+              <md-field>
+                <label>URL</label>
+                <md-input v-model="url" type="url"></md-input>
+              </md-field>
+              <md-field>
+                <label>Use this CORS proxy to download files</label>
+                <md-input v-model="proxy" type="url" placeholder="https://cors-anywhere.herokuapp.com/"></md-input>
+              </md-field>
+              <md-field>
+                <label> Only download urls containing this string </label>
+                <md-input v-model="urlFilter" type="text"></md-input>
+              </md-field>
+              <md-field>
+                <label> Do not download urls containing this string </label>
+                <md-input v-model="excludeFilter"></md-input>
+              </md-field>
+              <md-field>
+                <label> Delay between fetching pages (seconds) </label>
+                <md-input v-model="delay" type="number"></md-input>
+              </md-field>
+              <md-checkbox v-model="downloadImages"> Download images </md-checkbox>
+              <md-checkbox v-model="robots"> Respect "robots.txt" policy file. </md-checkbox>
+              <md-checkbox v-model="removeEmptyNodes"> Remove empty tags </md-checkbox>
+              <md-checkbox v-model="removeAttributes"> Remove uncommon attributes </md-checkbox>
+              <md-checkbox v-model="trimWhitespace"> Trim whitespace </md-checkbox>
+              <md-checkbox v-model="simplifyStructure"> Simplify structure</md-checkbox>
+              <p>
+              <md-button id="crawl" @click="beginCrawl" class="md-primary md-raised md-button">Crawl</md-button>
+              </p>
+              <md-progress-spinner id="progress" md-mode="indeterminate" style="display: none"></md-progress-spinner>
+              <div id="console"> </div>
+            </form>
+          </div>
         </div>
 
       </md-app-content>
@@ -135,6 +224,7 @@
 
 </div>
 
+<script src="bundle.js"></script>
 <script src="https://unpkg.com/vue"></script>
 <script src="https://unpkg.com/vue-material@beta"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
@@ -145,7 +235,7 @@
   new Vue({
     el: '#app',
     data: {
-      menuVisible: true,
+      menuVisible: false,
       jsonDir: '/sites/',
       indexLoaded: false,
       siteLoaded: false,
@@ -154,13 +244,20 @@
       overview: [],
       images: [],
       index: {},
-    },
-    mounted: function() {
-      axios.get(this.jsonDir + 'index.json', {})
-        .then((data) => {
-          this.indexLoaded = true;
-          this.index = _.toArray(data.data);
-        })
+      storage: {},
+      url: '',
+      proxy: 'http://crawler.dvm.local:8080/',
+      downloadImages: false,
+      urlFilter: '',
+      excludeFilter: '',
+      delay: 5,
+      robots: true,
+      removeEmptyNodes: true,
+      removeAttributes: true,
+      trimWhitespace: true,
+      simplifyStructure: true,
+      authKey: '',
+      rawJSON: '',
     },
     methods: {
       getOverview: function() {
@@ -171,13 +268,59 @@
           { title: 'Forms', count: this.results.forms.length, id: 'forms' },
         ]
       },
-      toggleMenu () {
+      authenticate: function() {
+        if (!this.authKey) {
+          return;
+        }
+
+        // Santize the key before we fetch it.
+        this.authKey = this.authKey.replace(/[^A-Za-z0-9]/g, "");
+
+        console.log(this.jsonDir + this.authKey + '-index.json');
+        axios.get(this.jsonDir + this.authKey + '-index.json', {})
+          .then((data) => {
+            this.indexLoaded = true;
+            this.index = _.toArray(data.data);
+            this.menuVisible = true;
+
+            // The key was valid,
+            // get the sites from local storage.
+            let request = window.indexedDB.open('crawler');
+            request.onupgradeneeded = function() {
+              this.result.createObjectStore('files');
+            }.bind(request);
+
+            request.onsuccess = function() {
+              let db = request.result;
+              let tx = db.transaction('files', 'readonly');
+              let st = tx.objectStore('files');
+              let getRequest = st.get(this.jsonDir + this.authKey + '-index.json');
+
+              getRequest.onsuccess = function() {
+                this.storage = getRequest.result;
+              }.bind(this);
+            }.bind(this);
+          }).catch((boo) => {
+            this.indexLoaded = false;
+            this.index = [];
+            alert('The login code was not correct. Please check it and try again.');
+          });
+
+      },
+      toggleMenu() {
         this.menuVisible = !this.menuVisible
+      },
+      beginCrawl() {
+        window.crawl(this.url, this.downloadImages, this.urlFilter, this.excludeFilter, this.proxy, this.delay, this.robots, this.authKey);
       },
       getSite(file) {
         axios.get(this.jsonDir + file, {})
           .then((data) => {
             this.results = data.data;
+            this.rawJSON = '';
+            try {
+              this.rawJSON = JSON.stringify(this.results);
+            } catch (ex) {}
             this.pages = this.results.pages;
             this.images = this.results.images;
             this.documents = this.results.documents;
@@ -185,7 +328,60 @@
             this.getOverview();
             this.siteLoaded = true;
           })
-      }
+      },
+      getStorage(key) {
+        let request = window.indexedDB.open('crawler');
+        request.onupgradeneeded = function() {
+          this.result.createObjectStore('files');
+        }.bind(request);
+
+        request.onsuccess = function() {
+          let db = request.result;
+          let tx = db.transaction('files', 'readonly');
+          let st = tx.objectStore('files');
+          let getRequest = st.get(this.jsonDir + key);
+          console.log(this.jsonDir + key);
+
+          getRequest.onsuccess = function() {
+            let site = getRequest.result;
+
+            this.results = site;
+            this.rawJSON = JSON.stringify(this.results);
+            this.pages = site.pages;
+            this.images = site.images;
+            this.documents = site.documents;
+            this.forms = site.forms;
+            this.getOverview();
+            this.siteLoaded = true;
+          }.bind(this);
+        }.bind(this);
+      },
+      removeStorage(key) {
+        let request = window.indexedDB.open('crawler');
+
+        request.onsuccess = function() {
+          let db = request.result;
+          let tx = db.transaction('files', 'readwrite');
+          let st = tx.objectStore('files');
+          console.log(this.jsonDir + key);
+          let deleteRequest = st.delete(this.jsonDir + key);
+
+          deleteRequest.onsuccess = function() {
+            delete this.storage[key];
+
+            // Save the storage array.
+            let putRequest = st.put(this.storage, this.jsonDir + this.authKey + '-index.json');
+
+            putRequest.onsuccess = function() {
+              this.authenticate();
+            }.bind(this);
+          }.bind(this);
+        }.bind(this);
+      },
+      homePage() {
+        this.results.domain = '';
+        this.siteLoaded = false;
+      },
     }
   })
 </script>
