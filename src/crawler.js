@@ -37,9 +37,13 @@ const Crawler = class {
       removeAttributes: true,
       trimWhitespace: true,
       simplifyStructure: true,
+      removeDuplicates: true,
       robots: true,
       authKey: '',
     };
+
+    // Remove duplicated content across pages.
+    this.elementHashCodes = {};
 
     // Merge the default settings with those passed to the constructor.
     this.settings = extend(this.settings, settings);
@@ -91,6 +95,54 @@ const Crawler = class {
       this.db.forms = _.keys(this.db.forms);
       // Save db to JSON.
       if (this.db.pages.length > 0) {
+        if (this.settings.removeDuplicates) {
+          // Calculate hashes from page nodes.
+          let page = 0,
+              body = '';
+              
+          let hashElements = function(index, element) {
+            if ($(element).html().length < 100) {
+              return;
+            }
+            let hash = this.hashString($(element).html());
+            if (this.elementHashCodes[hash]) {
+              this.elementHashCodes[hash]++;
+            } else {
+              this.elementHashCodes[hash] = 1;
+            }
+          }.bind(this);
+
+          for (page in this.db.pages) {
+            body = this.db.pages[page].body;
+
+            $('div, section, article', body).each( hashElements );
+          }
+
+
+          let removeElements = function(index, element) {
+            let hash = this.hashString($(element).html());
+            let tolerance = Math.max(this.db.pages.length / 2, 4);
+
+            if ($(element).html().length < 30) {
+              return;
+            }
+
+            if (this.elementHashCodes[hash] >= (tolerance)) {
+              $(element).remove();
+            }
+          }.bind(this);
+
+          // Remove duplicates above a threshhold.
+          for (page in this.db.pages) {
+            body = this.db.pages[page].body;
+
+            let jQuery = $.load(body);
+            jQuery('div, section, article').each( removeElements );
+            body = jQuery.html();
+            this.db.pages[page].body = body;
+          }
+        }
+
         this.saveDb();
         this.updateIndex();
         this.log('Crawl complete!', this.db.pages.length + ' pages', this.db.images.length + ' images',
@@ -107,11 +159,30 @@ const Crawler = class {
     this.completeHandler = this.log;
   }
 
-    /**
-     * Set a function to call when the crawl is complete.
-     *
-     * @param {Function} handler
-     */
+  /**
+   * Generate a unique hash for a string.
+   *
+   * @param {String} source
+   * @return {number}
+   */
+  hashString(source) {
+    let hash = 0, i, chr;
+
+    if (source.length === 0) return hash;
+
+    for (i = 0; i < source.length; i++) {
+      chr   = source.charCodeAt(i);
+      hash  = ((hash << 5) - hash) + chr;
+      hash |= 0; // Convert to 32bit integer
+    }
+    return hash;
+  }
+
+  /**
+   * Set a function to call when the crawl is complete.
+   *
+   * @param {Function} handler
+   */
   setCompleteHandler(handler) {
     this.completeHandler = handler;
   }
@@ -268,13 +339,15 @@ const Crawler = class {
 
     // Deeply nested divs and span with no meaning to the structure are hard to deal with.
     if (this.settings.simplifyStructure) {
-      if ((node[0].tagName == 'div' || node[0].tagName == 'span') && node.parent().length != 0) {
+      if ((node[0].tagName == 'div' || node[0].tagName == 'span') &&
+          node.parent().length != 0 && 
+          (node.parent()[0].tagName == 'div' || node.parent()[0].tagName == 'span')) {
         let innerHTML = node.html();
         node.replaceWith(innerHTML);
 
-        // node.replaceWith(node.children());
       }
     }
+
     return node;
   }
 
@@ -370,11 +443,15 @@ const Crawler = class {
       else {
         // Relative urls need to be made full.
         if (imgUrl.slice(0, 4) != 'http') {
-          if (imgUrl[0] == '/') {
-            imgUrl = imgUrl.slice(1);
+          if (imgUrl[1] == '/') {
+            imgUrl = 'http:' + imgUrl;
+          } else {
+            if (imgUrl[0] == '/') {
+              imgUrl = imgUrl.slice(1);
+            }
+            imgUrl = this.startUrl + imgUrl;
           }
-          imgUrl = this.startUrl + imgUrl;
-        } 
+        }
 
         // Query strings for images are likely duplicates.
         imgUrl.substring(imgUrl.indexOf("?") + 1);

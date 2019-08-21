@@ -209,6 +209,7 @@
               <md-checkbox v-model="removeAttributes"> Remove uncommon attributes </md-checkbox>
               <md-checkbox v-model="trimWhitespace"> Trim whitespace </md-checkbox>
               <md-checkbox v-model="simplifyStructure"> Simplify structure </md-checkbox>
+              <md-checkbox v-model="removeDuplicates"> Remove duplicated content </md-checkbox>
               <p>
               <md-button id="crawl" @click="beginCrawl" class="md-primary md-raised md-button">Crawl</md-button>
               </p>
@@ -264,6 +265,7 @@
       removeAttributes: true,
       trimWhitespace: true,
       simplifyStructure: true,
+      removeDuplicates: true,
       authKey: '',
       rawJSON: '',
     },
@@ -329,6 +331,8 @@
             this.delay,
             this.robots,
             this.authKey,
+            this.simplifyStructure,
+            this.removeDuplicates,
             this.crawlComplete);
       },
       crawlComplete() {
