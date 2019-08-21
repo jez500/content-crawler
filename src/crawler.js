@@ -269,7 +269,7 @@ const Crawler = class {
     // Deeply nested divs and span with no meaning to the structure are hard to deal with.
     if (this.settings.simplifyStructure) {
       if ((node[0].tagName == 'div' || node[0].tagName == 'span') && node.parent().length != 0) {
-        let innerHTML = $(node.html());
+        let innerHTML = node.html();
         node.replaceWith(innerHTML);
 
         // node.replaceWith(node.children());

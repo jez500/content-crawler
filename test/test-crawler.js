@@ -42,7 +42,8 @@ describe('Crawler', function() {
 
     let source = $.load('<html><body>' + 
       '<div role="main">' +
-      'Stuff to keep.' +
+      '<div><span>Stuff to keep.</span></div>' +
+      '<article></article>' +
       '<a href="#goodbye">Link to remove</a>' +
       '<span remove-attribute="remove attribute"><img src="http://localhost/img" title="Image is ok" other="remove me"></span>' +
       'More stuff to keep.' +
