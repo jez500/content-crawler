@@ -30,6 +30,7 @@ const Crawler = class {
       concurrentRequestsLimit: 1,
       saveDir: './public/sites',
       urlFilter: '',
+      excludeFilter: '',
       proxy: '',
       downloadImages: false,
       removeEmptyNodes: true,
@@ -177,7 +178,7 @@ const Crawler = class {
 
     // Handle images.
     this.crawler.addHandler("image", (context) => {
-      let buffer = new Buffer(context.body);
+      let buffer = Buffer.from(context.body);
       this.db.images[context.url] = {
         data: 'data:' + context.contentType + ';base64,' + buffer.toString('base64'),
         url: context.url
@@ -191,7 +192,7 @@ const Crawler = class {
       .insertIfNotExists(new supercrawler.Url(this.startUrl.href))
       .then(() => {
         return this.crawler.start();
-      }).catch(console.log);
+      }).catch(this.log);
   }
 
   /**
@@ -248,7 +249,7 @@ const Crawler = class {
         for (name in attributes) {
           if (!common.includes(name)) {
             node.removeAttr(name);
-          } else if (node.attr(name)[0] == '#') {
+          } else if (name == 'href' && node.attr(name)[0] == '#') {
             // Node is a relative in page link. Remove it.
             node.remove();
           }
@@ -268,7 +269,10 @@ const Crawler = class {
     // Deeply nested divs and span with no meaning to the structure are hard to deal with.
     if (this.settings.simplifyStructure) {
       if ((node[0].tagName == 'div' || node[0].tagName == 'span') && node.parent().length != 0) {
-        node.replaceWith(node.children());
+        let innerHTML = $(node.html());
+        node.replaceWith(innerHTML);
+
+        // node.replaceWith(node.children());
       }
     }
     return node;
@@ -292,6 +296,7 @@ const Crawler = class {
       main.find('nav').remove();
       main.find('.navbar').remove();
       main.find('header').remove();
+      main.find('head').remove();
       main.find('footer').remove();
       main.find('script').remove();
       main.find('noscript').remove();
@@ -305,7 +310,7 @@ const Crawler = class {
     }
 
     // Perform deep cleaning on the content.
-    let mainText = this.extractContent(main).html();
+    let mainText = $.html(this.extractContent(main));
 
     let res = {
       title: context.$('title').text(),
@@ -340,8 +345,11 @@ const Crawler = class {
   getImages(context) {
     let images = {}, count = 0, dataUrl = 0;
 
-    context.$('img').each((i ,d) => {
-      let imgUrl = context.$(d).attr('src');
+    let buffer = Buffer.from(context.body);
+    buffer = buffer.toString();
+
+    $('img', buffer).each((i, d) => {
+      let imgUrl = $(d).attr('src');
 
       if (!imgUrl) {
         return;
@@ -476,9 +484,13 @@ const Crawler = class {
       let code = document.createElement('code');
       code.appendChild(message);
       line.appendChild(code);
-      element.appendChild(line);
-      element.scrollTop = element.scrollHeight;
-      console.debug.apply(this, arguments);
+      if (element) {
+        element.appendChild(line);
+        element.scrollTop = element.scrollHeight;
+      }
+      if (this.settings.saveDir != 'test') {
+        console.debug.apply(this, arguments);
+      }
     } else {
       console.log.apply(this, arguments);
     }

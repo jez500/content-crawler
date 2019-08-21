@@ -20,7 +20,7 @@
       display: none;
     }
     #console {
-      max-height: 25em;
+      max-height: 20em;
       overflow: auto;
       background-color: #efefef ! important;
     }
@@ -166,7 +166,7 @@
         <div v-if="!indexLoaded">
           <h2 class="md-title">Authenticate
           <img src='doghouse.jpg' width="80" alt="" role="presentation"/></h2>
-          <p>To use this site you will require a valid login code from Doghouse Agency.</p>
+          <p>To use this site you will require a valid login code.</p>
           <p>Enter the login code here</p>
           <div layout="row" layout-align="center center">
             <input class="md-field" v-model="authKey" type="text" name="authKey" size="12">
@@ -177,8 +177,9 @@
         </div>
         <div v-else>
           <div v-if="!siteLoaded">
+            <div v-if="!crawling">
             <h2 class="md-title">How to crawl a site</h2>
-            <form onsubmit="document.getElementById('crawl').click(); return false;">
+            <form id="crawl-settings" onsubmit="document.getElementById('crawl').click(); return false;">
               <p>
                 Enter the address of a site to crawl and press "Crawl" to add it to the list.
               </p>
@@ -211,9 +212,15 @@
               <p>
               <md-button id="crawl" @click="beginCrawl" class="md-primary md-raised md-button">Crawl</md-button>
               </p>
-              <md-progress-spinner id="progress" md-mode="indeterminate" style="display: none"></md-progress-spinner>
-              <div id="console"> </div>
             </form>
+            </div>
+            <div v-if="crawling">
+            <h2 class="md-title">Crawling site: {{ url }} </h2>
+            <md-content md-tag="center">
+              <md-progress-spinner id="progress" md-mode="indeterminate" ></md-progress-spinner>
+            </md-content>
+            </div>
+            <div id="console"> </div>
           </div>
         </div>
 
@@ -252,6 +259,7 @@
       excludeFilter: '',
       delay: 5,
       robots: true,
+      crawling: false,
       removeEmptyNodes: true,
       removeAttributes: true,
       trimWhitespace: true,
@@ -311,7 +319,21 @@
         this.menuVisible = !this.menuVisible
       },
       beginCrawl() {
-        window.crawl(this.url, this.downloadImages, this.urlFilter, this.excludeFilter, this.proxy, this.delay, this.robots, this.authKey);
+        this.crawling = true;
+
+        window.crawl(this.url,
+            this.downloadImages,
+            this.urlFilter,
+            this.excludeFilter,
+            this.proxy,
+            this.delay,
+            this.robots,
+            this.authKey,
+            this.crawlComplete);
+      },
+      crawlComplete() {
+        this.crawling = false;
+        this.authenticate();
       },
       getSite(file) {
         axios.get(this.jsonDir + file, {})

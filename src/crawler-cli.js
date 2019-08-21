@@ -3,7 +3,8 @@ const process = require("process");
 
 // Command line only.
 if (typeof window == 'undefined') {
-  // Start new crawl.
+
+  // Read and check the command line arguments.
   let startUrl = '';
   let settings = {};
   let authKey = '';
@@ -20,6 +21,8 @@ if (typeof window == 'undefined') {
       urlFilter: process.argv[4],
     };
   }
+
+  // Crawl the site. Output will be saved to the public/sites folder.
   let dhcrawl = new crawler.Crawler(startUrl, settings);
   dhcrawl.startCrawl();
 }
