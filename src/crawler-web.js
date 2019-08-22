@@ -26,6 +26,7 @@ window.crawl = function(url,
                         authKey,
                         simplifyStructure,
                         removeDuplicates,
+                        contentMapping,
                         completeHandler) {
   let instance = new crawler.Crawler(url, {
     downloadImages: downloadImages,
@@ -37,6 +38,7 @@ window.crawl = function(url,
     authKey: authKey,
     simplifyStructure: simplifyStructure,
     removeDuplicates: removeDuplicates,
+    contentMapping: contentMapping,
   });
 
   // Do something when we finish.

@@ -213,6 +213,11 @@
               <md-checkbox v-model="trimWhitespace"> Trim whitespace </md-checkbox>
               <md-checkbox v-model="simplifyStructure"> Simplify structure </md-checkbox>
               <md-checkbox v-model="removeDuplicates"> Remove duplicated content </md-checkbox>
+            <md-field>
+              <md-textarea rols="10" cols="20" v-model="contentMapping"></textarea>
+            </md-field>
+
+
               <p>
               <md-button id="crawl" @click="beginCrawl" class="md-primary md-raised md-button">Crawl</md-button>
               </p>
@@ -271,6 +276,7 @@
       removeDuplicates: true,
       authKey: '',
       rawJSON: '',
+      contentMapping: '',
     },
     methods: {
       getOverview: function() {
@@ -335,6 +341,7 @@
             this.authKey,
             this.simplifyStructure,
             this.removeDuplicates,
+            this.contentMapping,
             this.crawlComplete);
       },
       crawlComplete() {

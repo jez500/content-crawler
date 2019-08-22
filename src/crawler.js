@@ -38,6 +38,7 @@ const Crawler = class {
       trimWhitespace: true,
       simplifyStructure: true,
       removeDuplicates: true,
+      contentMapping: '',
       robots: true,
       authKey: '',
     };
@@ -414,7 +415,8 @@ const Crawler = class {
     let res = {
       title: context.$('title').text(),
       url: context.url,
-      contentType: context.contentType,
+      mediaType: context.contentType,
+      contentType: this.mapContentType(context.url),
       size: Math.round((Buffer.byteLength(context.body) / 1024)),
       forms: this.getForms(context),
       images: this.getImages(context),
@@ -423,6 +425,32 @@ const Crawler = class {
 
     // The result of the page cleaning is pushed to the db pages array.
     this.db.pages.push(res);
+  }
+
+  /**
+   * Look at the url and try to map to a content type.
+   *
+   * The default type is page.
+   * @param {string} url
+   * @return {string}
+   */
+  mapContentType(url) {
+    let maps = this.settings.contentMapping.split(/\r?\n/),
+        index,
+        map,
+        line;
+
+    for (index in maps) {
+      line = maps[index].split('|');
+      if (line.length > 1) {
+        map = new RegExp('^' + line[0].trim().replace(/\*/g, '.*') + '.*$');
+
+        if (map.test(url)) {
+          return line[1].trim();
+        }
+      }
+    }
+    return 'page';
   }
 
   /**
@@ -579,7 +607,7 @@ const Crawler = class {
    * will write the content directly to the page.
    */
   log() {
-  let element = null,
+    let element = null,
       args = [],
       event = null;
 

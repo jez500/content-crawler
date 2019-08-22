@@ -86,4 +86,26 @@ describe('Crawler', function() {
 
     expect(images['http://localhost/img'].url).to.contain('localhost');
   });
+
+  it('content type mapping with wildcards should be correct', function() {
+    let settings = {
+      saveDir: 'test',
+      authKey: 'test',
+      downloadImages: true,
+      contentMapping: (
+        "  \thttp://example.com/2/*|other2\r\n" +
+        "http://example.com/|example \n" +
+        "\n" +
+        "http://other.co*|other \n" +
+        "\n"
+      ) 
+    };
+    let instance = new crawler.Crawler('http://localhost/', settings);
+
+    expect(instance.mapContentType('http://other.com/')).to.be('other');
+    expect(instance.mapContentType('http://example.com/2/something')).to.be('other2');
+    expect(instance.mapContentType('http://another.com/')).to.be('page');
+    expect(instance.mapContentType('http://example.com/')).to.be('example');
+    expect(instance.mapContentType('http://example.com/something')).to.be('example');
+  });
 });
