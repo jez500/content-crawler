@@ -40,7 +40,7 @@ const Duplicates = class {
    * @param {Element} element
    */
   hashElements(index, element) {
-    if ($(element).html().length < 100) {
+    if ($(element).html().length < 20) {
       return;
     }
     let hash = this.hashString($(element).html());
@@ -54,7 +54,7 @@ const Duplicates = class {
   removeElements(index, element) {
     let hash = this.hashString($(element).html());
 
-    if ($(element).html().length < 30) {
+    if ($(element).html().length < 10) {
       return;
     }
 
@@ -78,7 +78,7 @@ const Duplicates = class {
     for (page in pages) {
       body = pages[page].body;
 
-      $('div, section, article', body).each( this.hashElements.bind(this) );
+      $('div, header, footer, section, article', body).each( this.hashElements.bind(this) );
     }
 
     // Remove duplicates above a threshhold.
@@ -86,7 +86,7 @@ const Duplicates = class {
       body = pages[page].body;
 
       let $main = $.load(body);
-      $main('div, section, article').each( this.removeElements.bind(this) );
+      $main('div, header, footer, section, article').each( this.removeElements.bind(this) );
 
       // If there is a main region, jump to it.
       let $sub = $main('[role=main], main');
