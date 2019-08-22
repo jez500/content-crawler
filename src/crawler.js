@@ -1,6 +1,7 @@
 const supercrawler = require("supercrawler");
 const extend = require('extend');
-const storage = require('./storage');
+const Storage = require('./storage');
+const Duplicates = require('./duplicates');
 const Url = require('url-parse');
 const _ = require('lodash');
 const $ = require('cheerio');
@@ -24,7 +25,7 @@ const Crawler = class {
     this.elementHashCodes = {};
 
     // Get the instance of the storage for this class instance.
-    this.storage = new storage.Storage(this.settings.saveDir);
+    this.storage = new Storage(this.settings.saveDir);
 
     // Url filter.
     if (this.settings.urlFilter) {
@@ -49,7 +50,7 @@ const Crawler = class {
     this.crawler = this.getCrawler();
 
     // When no more urls to parse.
-    this.crawler.on('urllistcomplete', this.crawlComplete);
+    this.crawler.on('urllistcomplete', this.crawlComplete.bind(this));
 
     // Default the completeHandler to the log function.
     this.completeHandler = this.log;
@@ -66,63 +67,9 @@ const Crawler = class {
     // Save db to JSON.
     if (this.db.pages.length > 0) {
       if (this.settings.removeDuplicates) {
-        // Calculate hashes from page nodes.
-        let page = 0,
-            body = '';
-            
-        let hashElements = function(index, element) {
-          if ($(element).html().length < 100) {
-            return;
-          }
-          let hash = this.hashString($(element).html());
-          if (this.elementHashCodes[hash]) {
-            this.elementHashCodes[hash]++;
-          } else {
-            this.elementHashCodes[hash] = 1;
-          }
-        }.bind(this);
+        let duplicates = new Duplicates();
 
-        for (page in this.db.pages) {
-          body = this.db.pages[page].body;
-
-          $('div, section, article', body).each( hashElements );
-        }
-
-        let removeElements = function(index, element) {
-          let hash = this.hashString($(element).html());
-          let tolerance = Math.max(this.db.pages.length / 2, 4);
-
-          if ($(element).html().length < 30) {
-            return;
-          }
-
-          if (this.elementHashCodes[hash] >= (tolerance)) {
-            $(element).remove();
-          }
-        }.bind(this);
-
-        // Remove duplicates above a threshhold.
-        for (page in this.db.pages) {
-          body = this.db.pages[page].body;
-
-          let main = $.load(body);
-          main('div, section, article').each( removeElements );
-
-          // If there is a main region, jump to it.
-          let sub = main('[role=main], main');
-          if (sub.length) {
-            main = sub;
-          } else {
-            // Fallback to the html body.
-            sub = main('body');
-            if (sub.length) {
-              main = sub;
-            }
-          }
-
-          body = main.html();
-          this.db.pages[page].body = body;
-        }
+        duplicates.removeDuplicates(this.db.pages);
       }
 
       this.saveDb();
@@ -135,27 +82,6 @@ const Crawler = class {
     }
     // Stop crawling.
     this.crawler.stop();
-  }
-
-  /**
-   * Generate a unique hash for a string.
-   *
-   * @param {String} source
-   * @return {number}
-   */
-  hashString(source) {
-    let hash = 0, i, chr;
-
-    if (source.length === 0) return hash;
-
-    source = source.replace(/\s/g,'');
-
-    for (i = 0; i < source.length; i++) {
-      chr   = source.charCodeAt(i);
-      hash  = ((hash << 5) - hash) + chr;
-      hash |= 0; // Convert to 32bit integer
-    }
-    return hash;
   }
 
   /**

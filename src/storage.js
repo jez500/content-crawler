@@ -151,4 +151,4 @@ const Storage = class {
   }
 };
 
-module.exports.Storage = Storage;
+module.exports = Storage;

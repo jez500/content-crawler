@@ -1,27 +1,27 @@
 const expect = require('expect.js');
-const storage = require('../src/storage');
+const Storage = require('../src/storage');
 
 describe('Storage', function() {
   it('Constructor should create an instance', function() {
-    let instance = new storage.Storage('test');
+    let instance = new Storage('test');
 
-    expect(instance).to.be.a(storage.Storage);
+    expect(instance).to.be.a(Storage);
   });
 
   it('isWeb should test if the browser is available', function() {
-    let instance = new storage.Storage('test');
+    let instance = new Storage('test');
     
     expect(instance.isWeb()).to.be.ok();
   });
 
   it('prepareContainer should return true', function() {
-    let instance = new storage.Storage('test');
+    let instance = new Storage('test');
     
     expect(instance.prepareContainer()).to.be.ok();
   });
 
   it('writeJson read and write a json object', async function() {
-    let instance = new storage.Storage('test'),
+    let instance = new Storage('test'),
       fetch,
       result,
       json = { 'abc': 'def' };
@@ -36,7 +36,7 @@ describe('Storage', function() {
   });
 
   it('writeJson to refuse to write when unprepared', function() {
-    let instance = new storage.Storage('test');
+    let instance = new Storage('test');
 
     expect(instance.writeJson.bind(instance, 'test', { 'abc': 1 }), 'to throw', /must be prepared/);
   });
