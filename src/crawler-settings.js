@@ -69,6 +69,25 @@ const CrawlerSettings = class {
     this.interval = 1000 * this.delay;
   }
 
+  /**
+   * Filter urls that contain a string and don't contain another string.
+   * @param {String} url
+   * @param {String} context_url
+   * return {boolean}
+   *  - Use this URL if true.
+   */
+  filterUrl(url, context_url) {
+    // If urlFilter settings exists, check url contains it.
+    let valid = !(this.urlFilter && url.indexOf(this.urlFilter) === -1);
+
+    // If excludeFilter exists, check we don't have it.
+    if (this.excludeFilter) {
+      valid = valid && (url.indexOf(this.excludeFilter) === -1);
+    }
+
+    return valid;
+  }
+
 };
 
 module.exports = CrawlerSettings;

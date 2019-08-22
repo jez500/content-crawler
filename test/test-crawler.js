@@ -1,5 +1,5 @@
 const expect = require('expect.js');
-const crawler = require('../src/crawler');
+const Crawler = require('../src/crawler');
 const $ = require('cheerio');
 
 describe('Crawler', function() {
@@ -8,24 +8,9 @@ describe('Crawler', function() {
       saveDir: 'test',
       authKey: 'test',
     };
-    let instance = new crawler.Crawler('http://localhost/', settings);
+    let instance = new Crawler('http://localhost/', settings);
 
-    expect(instance).to.be.a(crawler.Crawler);
-  });
-
-  it('URL Filter includes and excludes should work', function() {
-    let settings = {
-      saveDir: 'test',
-      authKey: 'test',
-      urlFilter: 'http://example.org/',
-      excludeFilter: 'no-thanks',
-    };
-    let instance = new crawler.Crawler('http://localhost/', settings);
-
-    expect(instance.urlFilter('http://example.edu')).not.to.be.ok();
-    expect(instance.urlFilter('http://example.org/all-good')).to.be.ok();
-    expect(instance.urlFilter('http://example.org/no-thanks/more')).not.to.be.ok();
-    expect(instance.urlFilter('http://example.edu/no-thanks/more')).not.to.be.ok();
+    expect(instance).to.be.a(Crawler);
   });
 
   it('extractContent should remove clean the content', function() {
@@ -38,7 +23,7 @@ describe('Crawler', function() {
       trimWhitespace: true,
       simplifyStructure: true,
     };
-    let instance = new crawler.Crawler('http://localhost/', settings);
+    let instance = new Crawler('http://localhost/', settings);
 
     let source = $.load('<html><body>' + 
       '<div role="main">' +
@@ -67,7 +52,7 @@ describe('Crawler', function() {
       authKey: 'test',
       downloadImages: true,
     };
-    let instance = new crawler.Crawler('http://localhost/', settings);
+    let instance = new Crawler('http://localhost/', settings);
 
     let source = '<html><body>' + 
       '<div role="main">' +
@@ -100,7 +85,7 @@ describe('Crawler', function() {
         "\n"
       ) 
     };
-    let instance = new crawler.Crawler('http://localhost/', settings);
+    let instance = new Crawler('http://localhost/', settings);
 
     expect(instance.mapContentType('http://other.com/')).to.be('other');
     expect(instance.mapContentType('http://example.com/2/something')).to.be('other2');

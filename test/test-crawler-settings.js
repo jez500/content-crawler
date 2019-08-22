@@ -25,4 +25,20 @@ describe('CrawlerSettings', function() {
 
   });
 
+  it('URL Filter includes and excludes should work', function() {
+    let settings = {
+      saveDir: 'test',
+      authKey: 'test',
+      urlFilter: 'http://example.org/',
+      excludeFilter: 'no-thanks',
+    };
+    let instance = new CrawlerSettings('http://localhost/', settings);
+
+    expect(instance.filterUrl('http://example.edu')).not.to.be.ok();
+    expect(instance.filterUrl('http://example.org/all-good')).to.be.ok();
+    expect(instance.filterUrl('http://example.org/no-thanks/more')).not.to.be.ok();
+    expect(instance.filterUrl('http://example.edu/no-thanks/more')).not.to.be.ok();
+  });
+
+
 });

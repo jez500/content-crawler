@@ -209,7 +209,7 @@ const Crawler = class {
     this.crawler.addHandler("text", supercrawler.handlers.htmlLinkParser({
       hostnames: [this.settings.domain],
       urlFilter: (url, context_url) => {
-        return this.urlFilter(url, context_url);
+        return this.settings.filterUrl(url, context_url);
       }
     }));
 
@@ -240,25 +240,6 @@ const Crawler = class {
       .then(() => {
         return this.crawler.start();
       }).catch(this.log);
-  }
-
-  /**
-   * Filter urls that contain a string and don't contain another string.
-   * @param {String} url
-   * @param {String} context_url
-   * return {boolean}
-   *  - Use this URL if true.
-   */
-  urlFilter(url, context_url) {
-    // If urlFilter settings exists, check url contains it.
-    let valid = !(this.settings.urlFilter && url.indexOf(this.settings.urlFilter) === -1);
-
-    // If excludeFilter exists, check we don't have it.
-    if (this.settings.excludeFilter) {
-      valid = valid && (url.indexOf(this.settings.excludeFilter) === -1);
-    }
-
-    return valid;
   }
 
   /**
@@ -471,7 +452,7 @@ const Crawler = class {
         imgUrl.substring(imgUrl.indexOf("?") + 1);
 
         // Apply same url filtering to images.
-        let allow = this.urlFilter(imgUrl, null);
+        let allow = this.settings.filterUrl(imgUrl, null);
 
         if (allow) {
           this.log('Image discovered: ' + imgUrl);
@@ -589,4 +570,4 @@ const Crawler = class {
 
 };
 
-module.exports.Crawler = Crawler;
+module.exports = Crawler;

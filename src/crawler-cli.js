@@ -1,4 +1,4 @@
-const crawler = require("./crawler");
+const Crawler = require("./crawler");
 const process = require("process");
 
 // Command line only.
@@ -23,6 +23,6 @@ if (typeof window == 'undefined') {
   }
 
   // Crawl the site. Output will be saved to the public/sites folder.
-  let dhcrawl = new crawler.Crawler(startUrl, settings);
+  let dhcrawl = new Crawler(startUrl, settings);
   dhcrawl.startCrawl();
 }

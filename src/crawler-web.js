@@ -1,4 +1,4 @@
-const crawler = require("./crawler");
+const Crawler = require("./crawler");
 
 // We expose this function globally so it can be called inline from the Vue.js page
 // when the button is clicked.
@@ -28,7 +28,7 @@ window.crawl = function(url,
                         removeDuplicates,
                         contentMapping,
                         completeHandler) {
-  let instance = new crawler.Crawler(url, {
+  let instance = new Crawler(url, {
     downloadImages: downloadImages,
     urlFilter: urlFilter,
     excludeFilter: excludeFilter,
