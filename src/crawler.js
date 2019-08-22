@@ -4,6 +4,7 @@ const storage = require('./storage');
 const Url = require('url-parse');
 const _ = require('lodash');
 const $ = require('cheerio');
+const CrawlerSettings = require('./crawler-settings');
 
 const Crawler = class {
 
@@ -15,56 +16,15 @@ const Crawler = class {
    *  - The list of settings to apply to this web crawl.
    */
   constructor(startUrl = '', settings = {}) {
-    // Ensure there is a valid url to crawl.
-    if (!startUrl) {
-      this.log('You must provide a start url as the first argument!');
-      return;
-    }
 
     // Settings.
-    this.startUrl = new Url(startUrl);
-    this.settings = {
-      domain: this.startUrl.hostname,
-      protocol: this.startUrl.protocol,
-      delay: 5,
-      concurrentRequestsLimit: 1,
-      saveDir: './public/sites',
-      urlFilter: '',
-      excludeFilter: '',
-      proxy: '',
-      downloadImages: false,
-      removeEmptyNodes: true,
-      removeAttributes: true,
-      trimWhitespace: true,
-      simplifyStructure: true,
-      removeDuplicates: true,
-      contentMapping: '',
-      robots: true,
-      authKey: '',
-    };
+    this.settings = new CrawlerSettings(startUrl, settings);
 
     // Remove duplicated content across pages.
     this.elementHashCodes = {};
 
-    // Merge the default settings with those passed to the constructor.
-    this.settings = extend(this.settings, settings);
-
-    // We specify the delay in seconds, but we need to convert it to milli seconds.
-    this.settings.interval = 1000 * this.settings.delay;
-
     // Get the instance of the storage for this class instance.
     this.storage = new storage.Storage(this.settings.saveDir);
-
-    // Verify there is a valid auth key.
-    if (!this.settings.authKey) {
-      // Report an error so it is shown in the page.
-      this.log('Auth key is required.');
-      // Abort.
-      return;
-    } else {
-      // Only allow valid filename characters.
-      this.settings.authKey = this.settings.authKey.replace(/[^A-Za-z0-9]/g, "");
-    }
 
     // Url filter.
     if (this.settings.urlFilter) {
@@ -162,7 +122,7 @@ const Crawler = class {
         this.log('Crawl complete!', this.db.pages.length + ' pages', this.db.images.length + ' images',
         this.db.documents.length + ' documents', this.db.forms.length + ' forms');
       } else {
-        this.log('Crawl failed! Could not download ' + this.startUrl);
+        this.log('Crawl failed! Could not download ' + this.settings.startUrl);
         this.completeHandler(false);
       }
       // Stop crawling.
@@ -274,9 +234,9 @@ const Crawler = class {
     });
 
     // Start crawl.
-    this.log('Starting crawl from: ' + this.startUrl.href);
+    this.log('Starting crawl from: ' + this.settings.startUrl.href);
     this.crawler.getUrlList()
-      .insertIfNotExists(new supercrawler.Url(this.startUrl.href))
+      .insertIfNotExists(new supercrawler.Url(this.settings.startUrl.href))
       .then(() => {
         return this.crawler.start();
       }).catch(this.log);
@@ -503,7 +463,7 @@ const Crawler = class {
             if (imgUrl[0] == '/') {
               imgUrl = imgUrl.slice(1);
             }
-            imgUrl = this.startUrl + imgUrl;
+            imgUrl = this.settings.startUrl + imgUrl;
           }
         }
 
