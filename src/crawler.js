@@ -49,88 +49,92 @@ const Crawler = class {
     this.crawler = this.getCrawler();
 
     // When no more urls to parse.
-    this.crawler.on('urllistcomplete', () => {
-      // Turn assets into arrays.
-      this.db.images = _.values(this.db.images);
-      this.db.documents = _.keys(this.db.documents);
-      this.db.forms = _.keys(this.db.forms);
-      // Save db to JSON.
-      if (this.db.pages.length > 0) {
-        if (this.settings.removeDuplicates) {
-          // Calculate hashes from page nodes.
-          let page = 0,
-              body = '';
-              
-          let hashElements = function(index, element) {
-            if ($(element).html().length < 100) {
-              return;
-            }
-            let hash = this.hashString($(element).html());
-            if (this.elementHashCodes[hash]) {
-              this.elementHashCodes[hash]++;
-            } else {
-              this.elementHashCodes[hash] = 1;
-            }
-          }.bind(this);
-
-          for (page in this.db.pages) {
-            body = this.db.pages[page].body;
-
-            $('div, section, article', body).each( hashElements );
-          }
-
-
-          let removeElements = function(index, element) {
-            let hash = this.hashString($(element).html());
-            let tolerance = Math.max(this.db.pages.length / 2, 4);
-
-            if ($(element).html().length < 30) {
-              return;
-            }
-
-            if (this.elementHashCodes[hash] >= (tolerance)) {
-              $(element).remove();
-            }
-          }.bind(this);
-
-          // Remove duplicates above a threshhold.
-          for (page in this.db.pages) {
-            body = this.db.pages[page].body;
-
-            let main = $.load(body);
-            main('div, section, article').each( removeElements );
-
-            // If there is a main region, jump to it.
-            let sub = main('[role=main], main');
-            if (sub.length) {
-              main = sub;
-            } else {
-              // Fallback to the html body.
-              sub = main('body');
-              if (sub.length) {
-                main = sub;
-              }
-            }
-
-            body = main.html();
-            this.db.pages[page].body = body;
-          }
-        }
-
-        this.saveDb();
-        this.updateIndex();
-        this.log('Crawl complete!', this.db.pages.length + ' pages', this.db.images.length + ' images',
-        this.db.documents.length + ' documents', this.db.forms.length + ' forms');
-      } else {
-        this.log('Crawl failed! Could not download ' + this.settings.startUrl);
-        this.completeHandler(false);
-      }
-      // Stop crawling.
-      this.crawler.stop();
-    });
+    this.crawler.on('urllistcomplete', this.crawlComplete);
 
     // Default the completeHandler to the log function.
     this.completeHandler = this.log;
+  }
+
+  /**
+   * Urls have finished loading, post process the content.
+   */
+  crawlComplete() {
+    // Turn assets into arrays.
+    this.db.images = _.values(this.db.images);
+    this.db.documents = _.keys(this.db.documents);
+    this.db.forms = _.keys(this.db.forms);
+    // Save db to JSON.
+    if (this.db.pages.length > 0) {
+      if (this.settings.removeDuplicates) {
+        // Calculate hashes from page nodes.
+        let page = 0,
+            body = '';
+            
+        let hashElements = function(index, element) {
+          if ($(element).html().length < 100) {
+            return;
+          }
+          let hash = this.hashString($(element).html());
+          if (this.elementHashCodes[hash]) {
+            this.elementHashCodes[hash]++;
+          } else {
+            this.elementHashCodes[hash] = 1;
+          }
+        }.bind(this);
+
+        for (page in this.db.pages) {
+          body = this.db.pages[page].body;
+
+          $('div, section, article', body).each( hashElements );
+        }
+
+        let removeElements = function(index, element) {
+          let hash = this.hashString($(element).html());
+          let tolerance = Math.max(this.db.pages.length / 2, 4);
+
+          if ($(element).html().length < 30) {
+            return;
+          }
+
+          if (this.elementHashCodes[hash] >= (tolerance)) {
+            $(element).remove();
+          }
+        }.bind(this);
+
+        // Remove duplicates above a threshhold.
+        for (page in this.db.pages) {
+          body = this.db.pages[page].body;
+
+          let main = $.load(body);
+          main('div, section, article').each( removeElements );
+
+          // If there is a main region, jump to it.
+          let sub = main('[role=main], main');
+          if (sub.length) {
+            main = sub;
+          } else {
+            // Fallback to the html body.
+            sub = main('body');
+            if (sub.length) {
+              main = sub;
+            }
+          }
+
+          body = main.html();
+          this.db.pages[page].body = body;
+        }
+      }
+
+      this.saveDb();
+      this.updateIndex();
+      this.log('Crawl complete!', this.db.pages.length + ' pages', this.db.images.length + ' images',
+      this.db.documents.length + ' documents', this.db.forms.length + ' forms');
+    } else {
+      this.log('Crawl failed! Could not download ' + this.settings.startUrl);
+      this.completeHandler(false);
+    }
+    // Stop crawling.
+    this.crawler.stop();
   }
 
   /**
