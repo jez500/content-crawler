@@ -136,9 +136,22 @@ const Crawler = class {
           for (page in this.db.pages) {
             body = this.db.pages[page].body;
 
-            let jQuery = $.load(body);
-            jQuery('div, section, article').each( removeElements );
-            body = jQuery.html();
+            let main = $.load(body);
+            main('div, section, article').each( removeElements );
+
+            // If there is a main region, jump to it.
+            let sub = main('[role=main], main');
+            if (sub.length) {
+              main = sub;
+            } else {
+              // Fallback to the html body.
+              sub = main('body');
+              if (sub.length) {
+                main = sub;
+              }
+            }
+
+            body = main.html();
             this.db.pages[page].body = body;
           }
         }
@@ -169,6 +182,8 @@ const Crawler = class {
     let hash = 0, i, chr;
 
     if (source.length === 0) return hash;
+
+    source = source.replace(/\s/g,'');
 
     for (i = 0; i < source.length; i++) {
       chr   = source.charCodeAt(i);
@@ -367,8 +382,10 @@ const Crawler = class {
     // Strip some common things.
     if (this.settings.simplifyStructure) {
       main.find('nav').remove();
-      // This is a bootstrap common class.
+      main.find('aside').remove();
+      // Common navigation elements.
       main.find('.navbar').remove();
+      main.find('.Breadcrumbs').remove();
       main.find('header').remove();
       main.find('head').remove();
       main.find('footer').remove();
@@ -380,7 +397,7 @@ const Crawler = class {
     }
 
     // If there is a main region, jump to it.
-    let sub = main.find('[role=main]');
+    let sub = main.find('[role=main], main');
     if (sub.length) {
       main = sub;
     } else {
