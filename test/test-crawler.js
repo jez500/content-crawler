@@ -94,7 +94,7 @@ describe('Crawler', function() {
       downloadImages: true,
       contentMapping: (
         "  \thttp://example.com/2/*|other2\r\n" +
-        "http://example.com/|example \n" +
+        "http://example.com|example \n" +
         "\n" +
         "http://other.co*|other \n" +
         "\n"
@@ -106,6 +106,5 @@ describe('Crawler', function() {
     expect(instance.mapContentType('http://example.com/2/something')).to.be('other2');
     expect(instance.mapContentType('http://another.com/')).to.be('page');
     expect(instance.mapContentType('http://example.com/')).to.be('example');
-    expect(instance.mapContentType('http://example.com/something')).to.be('example');
   });
 });

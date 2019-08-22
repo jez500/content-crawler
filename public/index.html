@@ -160,7 +160,7 @@
               <h2 class="md-title" id="documents">Raw JSON</h2>
             </md-table-toolbar>
             <md-field>
-              <md-textarea id="raw" rols="10" cols="20" v-model="rawJSON" :readonly="true"></textarea>
+              <md-textarea id="raw" v-model="rawJSON" :readonly="true"></textarea>
             </md-field>
           </md-table>
 
@@ -192,7 +192,7 @@
               </md-field>
               <md-field>
                 <label>Use this CORS proxy to download files</label>
-                <md-input v-model="proxy" type="url" placeholder="https://cors-anywhere.herokuapp.com/"></md-input>
+                <md-input v-model="proxy" type="url"></md-input>
               </md-field>
               <md-field>
                 <label> Only download urls containing this string </label>
@@ -214,7 +214,13 @@
               <md-checkbox v-model="simplifyStructure"> Simplify structure </md-checkbox>
               <md-checkbox v-model="removeDuplicates"> Remove duplicated content </md-checkbox>
             <md-field>
-              <md-textarea rols="10" cols="20" v-model="contentMapping"></textarea>
+              <label>
+                Map URLs to content types.
+              </label>
+              <md-textarea v-model="contentMapping" placeholder="
+
+                  http://url/*/specific | product
+                  http://url | other "></textarea>
             </md-field>
 
 
@@ -262,7 +268,7 @@
       index: {},
       storage: {},
       url: '',
-      proxy: 'http://crawler.dvm.local:8080/',
+      proxy: 'https://cors-anywhere.herokuapp.com/',
       downloadImages: false,
       urlFilter: '',
       excludeFilter: '',

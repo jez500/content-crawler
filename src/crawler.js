@@ -443,7 +443,7 @@ const Crawler = class {
     for (index in maps) {
       line = maps[index].split('|');
       if (line.length > 1) {
-        map = new RegExp('^' + line[0].trim().replace(/\*/g, '.*') + '.*$');
+        map = new RegExp('^' + line[0].trim().replace(/\*/g, '.*') + '/?$');
 
         if (map.test(url)) {
           return line[1].trim();
