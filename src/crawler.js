@@ -160,7 +160,7 @@ const Crawler = class {
         data: 'data:' + context.contentType + ';base64,' + buffer.toString('base64'),
         url: context.url
       };
-      this.log("Image retrieved");
+      this.log("Image retrieved: " + context.url);
     });
 
     // Start crawl.

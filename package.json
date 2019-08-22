@@ -19,6 +19,7 @@
     "fs-extra": "^7.0.1",
     "jquery": "^3.4.0",
     "lodash": "^4.17.11",
+    "minimist": "^1.2.0",
     "supercrawler": "^1.7.0",
     "url-parse": "^1.4.6",
     "vue": "^2.6.10",

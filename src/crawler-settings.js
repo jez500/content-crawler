@@ -22,7 +22,15 @@ const CrawlerSettings = class {
     for (propKey in settings) {
       if (Object.prototype.hasOwnProperty.call(settings, propKey)) {
         if (!Object.prototype.hasOwnProperty.call(this, propKey)) {
-          throw new Error('Invalid property passed to settings: ' + propKey);
+
+          let usage = "\n\n  Valid arguments are:\n\n",
+              key = '';
+
+          for (key in Object.keys(this)) {
+            usage += '   --' + key + ' ' + this[key] + "\n";
+          }
+
+          throw new Error('Invalid argument passed to settings: ' + propKey + usage);
         }
       }
     }
