@@ -19,7 +19,10 @@
     md-app {
       display: none;
     }
-    #console {
+    .image--preview {
+      max-height: 5em;
+    }
+    .log--crawler {
       max-height: 20em;
       overflow: auto;
       background-color: #efefef ! important;
@@ -133,7 +136,7 @@
             </md-table-toolbar>
 
             <md-table-row slot="md-table-row" v-for="image in images">
-              <md-table-cell md-label="Image" md-sort-by="image"><a :href="image.url" target="_blank"><img :src="image.data" style="max-height: 5em;"> <br/> {{ image.url }}</a></md-table-cell>
+              <md-table-cell md-label="Image" md-sort-by="image"><a :href="image.url" target="_blank"><img :src="image.data" class="image--preview"> <br/> {{ image.url }}</a></md-table-cell>
             </md-table-row>
           </md-table>
 
@@ -221,7 +224,7 @@
               <md-progress-spinner id="progress" md-mode="indeterminate" ></md-progress-spinner>
             </md-content>
             </div>
-            <div id="console"> </div>
+            <div class="log--crawler"> </div>
           </div>
         </div>
 
@@ -238,7 +241,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js"></script>
 <script>
-  Vue.use(VueMaterial.default)
+  Vue.use(VueMaterial.default);
 
   new Vue({
     el: '#app',
@@ -286,7 +289,6 @@
         // Santize the key before we fetch it.
         this.authKey = this.authKey.replace(/[^A-Za-z0-9]/g, "");
 
-        console.log(this.jsonDir + this.authKey + '-index.json');
         axios.get(this.jsonDir + this.authKey + '-index.json', {})
           .then((data) => {
             this.indexLoaded = true;
@@ -366,7 +368,6 @@
           let tx = db.transaction('files', 'readonly');
           let st = tx.objectStore('files');
           let getRequest = st.get(this.jsonDir + key);
-          console.log(this.jsonDir + key);
 
           getRequest.onsuccess = function() {
             let site = getRequest.result;
@@ -389,7 +390,6 @@
           let db = request.result;
           let tx = db.transaction('files', 'readwrite');
           let st = tx.objectStore('files');
-          console.log(this.jsonDir + key);
           let deleteRequest = st.delete(this.jsonDir + key);
 
           deleteRequest.onsuccess = function() {
@@ -409,7 +409,26 @@
         this.siteLoaded = false;
       },
     }
-  })
+  });
+
+  // Custom event listener to get log messages from the crawler.
+
+  window.addEventListener('log--crawler', function(evt) {
+    let logConsole = document.getElementsByClassName('log--crawler');
+
+    if (logConsole) {
+      let message = document.createTextNode(evt.message);
+      let line = document.createElement('p');
+      let code = document.createElement('code');
+      code.appendChild(message);
+      line.appendChild(code);
+      logConsole = logConsole[0];
+      logConsole.appendChild(line);
+      logConsole.scrollTop = logConsole.scrollHeight;
+    }
+    console.log('Crawler Log: ' + evt.message);
+  });
+
 </script>
 </body>
 </html>

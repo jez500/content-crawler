@@ -17,7 +17,7 @@ const Crawler = class {
   constructor(startUrl = '', settings = {}) {
     // Ensure there is a valid url to crawl.
     if (!startUrl) {
-      console.error('You must provide a start url as the first argument!');
+      this.log('You must provide a start url as the first argument!');
       return;
     }
 
@@ -367,6 +367,7 @@ const Crawler = class {
     // Strip some common things.
     if (this.settings.simplifyStructure) {
       main.find('nav').remove();
+      // This is a bootstrap common class.
       main.find('.navbar').remove();
       main.find('header').remove();
       main.find('head').remove();
@@ -374,12 +375,20 @@ const Crawler = class {
       main.find('script').remove();
       main.find('noscript').remove();
       main.find('style').remove();
+      main.find('iframe').remove();
+      main.find('object').remove();
     }
 
     // If there is a main region, jump to it.
     let sub = main.find('[role=main]');
     if (sub.length) {
       main = sub;
+    } else {
+      // Fallback to the html body.
+      sub = main.find('body');
+      if (sub.length) {
+        main = sub;
+      }
     }
 
     // Perform deep cleaning on the content.
@@ -553,19 +562,19 @@ const Crawler = class {
    * will write the content directly to the page.
    */
   log() {
+  let element = null,
+      args = [],
+      event = null;
+
     if (this.isWeb()) {
-      let element = document.getElementById('console');
-      let args = Array.prototype.slice.call(arguments);
-      let message = document.createTextNode(args.join(', '));
-      let line = document.createElement('p');
-      let code = document.createElement('code');
-      code.appendChild(message);
-      line.appendChild(code);
-      if (element) {
-        element.appendChild(line);
-        element.scrollTop = element.scrollHeight;
-      }
       if (this.settings.saveDir != 'test') {
+        args = Array.prototype.slice.call(arguments);
+
+        event = new CustomEvent('log--crawler', { bubbles: false, cancellable: false });
+
+        event.message = args.join(', ');
+        window.dispatchEvent(event);
+
         console.debug.apply(this, arguments);
       }
     } else {
