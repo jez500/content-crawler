@@ -182,10 +182,11 @@ const Crawler = class {
    * @return {jQuery}
    */
   extractContent(node) {
+    let valid = ['img', 'input', 'select', 'textarea', 'button'];
     if (this.settings.removeEmptyNodes &&
         node.text().trim() === '' &&
         node.children().length == 0 &&
-        node[0].tagName != 'img') {
+        !valid.includes(node[0].tagName)) {
 
       // Node has no text and no children. Remove it.
       node.remove();
@@ -385,7 +386,6 @@ const Crawler = class {
         let allow = this.settings.filterUrl(imgUrl, null);
 
         if (allow) {
-          this.log('Image discovered: ' + imgUrl);
           if (this.settings.downloadImages) {
             // Queue it.
             this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
@@ -411,7 +411,7 @@ const Crawler = class {
   getForms(context) {
     let forms = [];
     context.$('form').each((i ,d) => {
-      let formKey = $(d).html();
+      let formKey = $.html(d);
       this.db.forms[ formKey ] = 'form';
       forms.push($(d).attr('action') + ' - Key: ' + formKey);
     });

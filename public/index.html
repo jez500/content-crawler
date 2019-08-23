@@ -86,11 +86,9 @@
             <md-button class="md-icon-button" @click="removeStorage(nav.title)"><md-icon>delete</md-icon></md-button>
           </md-list-item>
           <md-list-item>
-          <label class="md-list-item-text">
           <md-button @click="homePage" class="md-raised md-button">
               Add new website
           </md-button>
-          </label>
           </md-list-item>
         </md-list>
         <div v-if="indexMaster">
@@ -177,6 +175,19 @@
           </md-table>
 
           <md-divider></md-divider><br /><br />
+          <md-table v-if="forms">
+            <md-table-toolbar>
+              <h2 class="md-title" id="forms">Forms</h2>
+            </md-table-toolbar>
+
+            <md-table-row slot="md-table-row" v-for="form in forms">
+              <md-table-cell md-label="Form">
+                <pre>{{ form }}</pre>
+              </md-table-cell>
+            </md-table-row>
+          </md-table>
+
+          <md-divider></md-divider><br /><br />
 
           <!-- Provide a way to extract the json so you can save it to a file -->
           <md-table>
@@ -187,8 +198,6 @@
               <md-textarea id="raw" v-model="rawJSON" :readonly="true"></textarea>
             </md-field>
           </md-table>
-
-
         </div>
 
         <div v-if="!indexLoaded">
