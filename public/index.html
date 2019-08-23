@@ -67,7 +67,7 @@
         <div v-if="indexLoaded">
         <md-list>
           <md-list-item>
-            <h4 class="md-subhead">Server</h4>
+            <h4 class="md-subhead">Shared</h4>
           </md-list-item>
           <md-list-item v-for="nav in index" @click="getSite(nav.file)" :key="nav.file">
             <md-icon>bookmark_border</md-icon>
@@ -93,6 +93,23 @@
           </label>
           </md-list-item>
         </md-list>
+        <div v-if="indexMaster">
+        <md-list>
+          <md-list-item>
+            <h4 class="md-subhead">Clients</h4>
+          </md-list-item>
+          <md-list-item v-for="client in clients" :key="client.key">
+            <md-icon>bookmark_border</md-icon>
+            <span class="md-list-item-text">{{ client }}</span>
+            <md-button class="md-icon-button" @click="removeClient(client)"><md-icon>delete</md-icon></md-button>
+          </md-list-item>
+          <md-list-item>
+          <md-button @click="addClient" class="md-raised md-button">
+              Add new client
+          </md-button>
+          </md-list-item>
+        </md-list>
+        </div>
         </div>
 
       </md-app-drawer>
@@ -276,6 +293,7 @@
       images: [],
       index: {},
       storage: {},
+      clients: [],
       url: '',
       proxy: 'https://cors-anywhere.herokuapp.com/',
       downloadImages: false,
@@ -284,6 +302,7 @@
       delay: 5,
       robots: true,
       crawling: false,
+      indexMaster: false,
       removeEmptyNodes: true,
       removeAttributes: true,
       trimWhitespace: true,
@@ -303,8 +322,58 @@
           { title: 'Forms', count: this.results.forms.length, id: 'forms' },
         ]
       },
+      removeClient: function(key) {
+        if (!this.indexMaster) {
+          return [];
+        }
+
+        let params = new URLSearchParams();
+
+        params.append('action', 'remove_client');
+        params.append('key', key);
+        params.append('authKey', this.authKey);
+
+        axios.post('persist.php', params).then(() => {
+          this.listClients();
+        });
+
+      },
+      addClient: function() {
+        if (!this.indexMaster) {
+          return [];
+        }
+
+        let params = new URLSearchParams(),
+            key = Math.random().toString(36).substring(2, 8);
+
+        params.append('action', 'add_client');
+        params.append('key', key);
+        params.append('authKey', this.authKey);
+
+        axios.post('persist.php', params).then(() => {
+          this.listClients();
+        });
+
+      },
+      listClients: function() {
+        if (!this.indexMaster) {
+          return [];
+        }
+
+        let params = new URLSearchParams();
+
+        params.append('action', 'list');
+        params.append('authKey', this.authKey);
+
+        axios.post('persist.php', params).then((data) => {
+          this.clients = data.data;
+        });
+
+      },
       moveSiteToServer: function() {
         let params = new URLSearchParams();
+
+        params.append('action', 'add');
         params.append('authKey', this.authKey);
         params.append('domain', this.results.domain);
         params.append('title', this.results.domain);
@@ -318,8 +387,10 @@
       },
       removeSite(site) {
         let params = new URLSearchParams();
+
         params.append('authKey', this.authKey);
         params.append('remove', this.results.domain);
+        params.append('action', 'remove');
 
         axios.post('persist.php', params).then(() => {
           this.authenticate();
@@ -362,6 +433,12 @@
                 }
               }.bind(this);
             }.bind(this);
+          }).then(() => {
+            axios.get(this.jsonDir + this.authKey + '-index.json.master?' + timestamp, {})
+            .then((data) => {
+              this.indexMaster = true;
+              this.listClients();
+            });
           }).catch((boo) => {
             this.indexLoaded = false;
             this.index = [];
