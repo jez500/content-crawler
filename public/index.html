@@ -72,6 +72,7 @@
           <md-list-item v-for="nav in index" @click="getSite(nav.file)" :key="nav.file">
             <md-icon>bookmark_border</md-icon>
             <span class="md-list-item-text"><a href='#'>{{ nav.title }}</a></span>
+            <md-button class="md-icon-button" @click="removeSite(nav.title)"><md-icon>delete</md-icon></md-button>
           </md-list-item>
         </md-list>
 
@@ -111,6 +112,12 @@
               <md-table-cell md-label="Count" md-sort-by="url">{{ item.count }}</md-table-cell>
             </md-table-row>
           </md-table>
+
+          <md-divider></md-divider><br /><br />
+
+          <div v-if="!isServer">
+            <md-button @click="moveSiteToServer" class="md-primary md-raised md-button">Move site to server</md-button>
+          </div>
 
           <md-divider></md-divider><br /><br />
 
@@ -163,6 +170,7 @@
               <md-textarea id="raw" v-model="rawJSON" :readonly="true"></textarea>
             </md-field>
           </md-table>
+
 
         </div>
 
@@ -261,6 +269,7 @@
       jsonDir: '/sites/',
       indexLoaded: false,
       siteLoaded: false,
+      isServer: false,
       results: {},
       pages: [],
       overview: [],
@@ -283,6 +292,7 @@
       authKey: '',
       rawJSON: '',
       contentMapping: '',
+      domainToLoad: '',
     },
     methods: {
       getOverview: function() {
@@ -293,15 +303,39 @@
           { title: 'Forms', count: this.results.forms.length, id: 'forms' },
         ]
       },
-      authenticate: function() {
+      moveSiteToServer: function() {
+        let params = new URLSearchParams();
+        params.append('authKey', this.authKey);
+        params.append('domain', this.results.domain);
+        params.append('title', this.results.domain);
+        params.append('json', this.rawJSON);
+
+        axios.post('persist.php', params).then(() => {
+          let site = this.results.domain;
+          this.removeStorage(site);
+          this.getSite(site + '.json');
+        });
+      },
+      removeSite(site) {
+        let params = new URLSearchParams();
+        params.append('authKey', this.authKey);
+        params.append('remove', this.results.domain);
+
+        axios.post('persist.php', params).then(() => {
+          this.authenticate();
+        });
+
+      },
+      authenticate() {
         if (!this.authKey) {
           return;
         }
 
         // Santize the key before we fetch it.
         this.authKey = this.authKey.replace(/[^A-Za-z0-9]/g, "");
+        let timestamp = (new Date()).getTime();
 
-        axios.get(this.jsonDir + this.authKey + '-index.json', {})
+        axios.get(this.jsonDir + this.authKey + '-index.json?' + timestamp, {})
           .then((data) => {
             this.indexLoaded = true;
             this.index = _.toArray(data.data);
@@ -322,6 +356,10 @@
 
               getRequest.onsuccess = function() {
                 this.storage = getRequest.result;
+                if (this.domainToLoad) {
+                  this.getStorage(this.domainToLoad);
+                  this.domainToLoad = '';
+                }
               }.bind(this);
             }.bind(this);
           }).catch((boo) => {
@@ -336,6 +374,10 @@
       },
       beginCrawl() {
         this.crawling = true;
+
+        if (this.url.substring(0, 4) != 'http') {
+          this.url = 'http://' + this.url;
+        }
 
         window.crawl(this.url,
             this.downloadImages,
@@ -352,6 +394,8 @@
       },
       crawlComplete() {
         this.crawling = false;
+        let url = new URL(this.url);
+        this.domainToLoad = url.hostname + '.json';
         this.authenticate();
       },
       getSite(file) {
@@ -359,15 +403,18 @@
           .then((data) => {
             this.results = data.data;
             this.rawJSON = '';
+
             try {
               this.rawJSON = JSON.stringify(this.results);
             } catch (ex) {}
+
             this.pages = this.results.pages;
             this.images = this.results.images;
             this.documents = this.results.documents;
             this.forms = this.results.forms;
             this.getOverview();
             this.siteLoaded = true;
+            this.isServer = true;
           })
       },
       getStorage(key) {
@@ -393,6 +440,7 @@
             this.forms = site.forms;
             this.getOverview();
             this.siteLoaded = true;
+            this.isServer = false;
           }.bind(this);
         }.bind(this);
       },
