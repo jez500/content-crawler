@@ -4,23 +4,41 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "crawl": "node index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "crawl": "node src/crawler-cli.js",
+    "build": "grunt",
+    "test": "grunt mochaTest"
   },
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "browserify-zlib": "^0.2.0",
     "cheerio": "^1.0.0-rc.3",
     "extend": "^3.0.2",
     "file-system": "^2.2.2",
     "fs": "0.0.1-security",
     "fs-extra": "^7.0.1",
     "jquery": "^3.4.0",
-    "jsdom": "^14.0.0",
     "lodash": "^4.17.11",
+    "minimist": "^1.2.0",
     "supercrawler": "^1.7.0",
     "url-parse": "^1.4.6",
     "vue": "^2.6.10",
-    "vue-material": "^1.0.0-beta-10.2"
+    "vue-material": "^1.0.0-beta-10.2",
+    "zlib": "^1.0.5"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.5.5",
+    "@babel/preset-env": "^7.5.5",
+    "expect.js": "^0.3.1",
+    "grunt": "^1.0.4",
+    "grunt-babel": "^8.0.0",
+    "grunt-browserify": "^5.3.0",
+    "grunt-contrib-jshint": "^2.1.0",
+    "grunt-contrib-uglify": "^4.0.1",
+    "grunt-contrib-watch": "^1.1.0",
+    "grunt-mocha-test": "^0.13.3",
+    "jsdom": "^14.1.0",
+    "jsdom-global": "^3.0.2",
+    "mocha": "^6.2.0"
   }
 }
