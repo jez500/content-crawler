@@ -92,6 +92,30 @@ function perform_request_add($args, $indexJson) {
 }
 
 /**
+ * Parse the post params for the remove request.
+ *
+ * @return array
+ */
+function parse_request_remove() {
+  $params = [];
+
+  $params['authKey'] = $_POST['authKey'];
+  $params['remove'] = $_POST['remove'];
+
+  // Sanitise params.
+  $params['authKey'] = preg_replace('/[^A-Za-z0-9]/', '', $params['authKey']);
+  $params['remove'] = preg_replace('/[^\.A-Za-z0-9]/', '', $params['remove']);
+  $params['remove'] = preg_replace('/\.\./', '', $params['remove']);
+
+  foreach ($params as $key => $value) {
+    if (!$value) {
+      die('Invalid parameters');
+    }
+  }
+  return $params;
+}
+
+/**
  * Make the change for the request.
  *
  * @param array $args

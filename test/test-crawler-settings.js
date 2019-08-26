@@ -30,7 +30,7 @@ describe('CrawlerSettings', function() {
       saveDir: 'test',
       authKey: 'test',
       urlFilter: 'http://example.org/',
-      excludeFilter: 'no-thanks',
+      excludeFilter: 'no-thanks,another',
     };
     let instance = new CrawlerSettings('http://localhost/', settings);
 
@@ -38,6 +38,7 @@ describe('CrawlerSettings', function() {
     expect(instance.filterUrl('http://example.org/all-good')).to.be.ok();
     expect(instance.filterUrl('http://example.org/no-thanks/more')).not.to.be.ok();
     expect(instance.filterUrl('http://example.edu/no-thanks/more')).not.to.be.ok();
+    expect(instance.filterUrl('http://another.com/')).not.to.be.ok();
   });
 
 

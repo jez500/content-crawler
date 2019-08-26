@@ -67,7 +67,7 @@ describe('Crawler', function() {
       contentType: 'text/html'
     };
 
-    let images = instance.getImages(context);
+    let images = instance.getImages(source);
 
     expect(images['http://localhost/img'].url).to.contain('localhost');
   });
@@ -79,7 +79,7 @@ describe('Crawler', function() {
       downloadImages: true,
       contentMapping: (
         "  \thttp://example.com/2/*|other2\r\n" +
-        "http://example.com|example \n" +
+        "http://example.com|example|article \n" +
         "\n" +
         "http://other.co*|other \n" +
         "\n"
@@ -87,9 +87,10 @@ describe('Crawler', function() {
     };
     let instance = new Crawler('http://localhost/', settings);
 
-    expect(instance.mapContentType('http://other.com/')).to.be('other');
-    expect(instance.mapContentType('http://example.com/2/something')).to.be('other2');
-    expect(instance.mapContentType('http://another.com/')).to.be('page');
-    expect(instance.mapContentType('http://example.com/')).to.be('example');
+    expect(instance.mapContentType('http://other.com/').type).to.be('other');
+    expect(instance.mapContentType('http://example.com/2/something').type).to.be('other2');
+    expect(instance.mapContentType('http://another.com/').type).to.be('page');
+    expect(instance.mapContentType('http://example.com/').type).to.be('example');
+    expect(instance.mapContentType('http://example.com/').search).to.be('article');
   });
 });

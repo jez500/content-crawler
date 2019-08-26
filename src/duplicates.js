@@ -64,6 +64,97 @@ const Duplicates = class {
   }
 
   /**
+   * Remove duplicated prefix or suffix from a list of titles.
+   *
+   * @param {Array} pages
+   * - Each page has a title element.
+   */
+  removeDuplicateTitles(pages) {
+    // Calculate hashes from page nodes.
+    let page,
+        titles = [];
+
+    for (page in pages) {
+      if (!pages[page].search) {
+        titles.push(pages[page].title);
+      }
+    }
+    if (titles.length < 2) {
+      return;
+    }
+
+    let suffix = this.findSuffix(titles);
+    if (suffix) {
+      for (page in pages) {
+        if (!pages[page].search) {
+          pages[page].title = pages[page].title.slice(0, -suffix.length);
+        }
+      }
+    }
+
+    let prefix = this.findPrefix(titles);
+    if (prefix) {
+      for (page in pages) {
+        if (!pages[page].search) {
+          pages[page].title = pages[page].title.slice(prefix.length);
+        }
+      }
+    }
+  }
+
+  /**
+   * Given an array of strings, find the common suffix for all the elements.
+   *
+   * This is done by sorting the array and then comparing the first and last elements.
+   *
+   * @param {array} strings
+   * @return string
+   */
+  findSuffix(strings) {
+    if(!strings.length) {
+      return ''; // or null or undefined; your choice
+    }
+
+    var sorted = strings.slice(0).sort(), // copy the array before sorting!
+        string1 = sorted[0],
+        string2 = sorted[sorted.length-1],
+        i = 0,
+        l = Math.min(string1.length, string2.length);
+
+    while(i < l && string1[string1.length - i - 1] === string2[string2.length - i - 1]) {
+      i++;
+    }
+
+    return string1.slice(-i);
+  }
+
+  /**
+   * Given an array of strings, find the common prefix for all the elements.
+   *
+   * This is done by sorting the array and then comparing the first and last elements.
+   *
+   * @param {array} strings
+   * @return string
+   */
+  findPrefix(strings) {
+    if(!strings.length) {
+      return ''; // or null or undefined; your choice
+    }
+
+    var sorted = strings.slice(0).sort(), // copy the array before sorting!
+        string1 = sorted[0],
+        string2 = sorted[sorted.length-1],
+        i = 0,
+        l = Math.min(string1.length, string2.length);
+
+    while(i < l && string1[i] === string2[i]) {
+      i++;
+    }
+
+    return string1.slice(0, i);
+  }
+
+  /**
    * Remove duplicated element clusters from a set of pages.
    * @param {Array} pages
    * - Each page has a body element.

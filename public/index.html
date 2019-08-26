@@ -182,7 +182,9 @@
 
             <md-table-row slot="md-table-row" v-for="form in forms">
               <md-table-cell md-label="Form">
-                <pre>{{ form }}</pre>
+                <md-field>
+                  <md-textarea id="raw" v-model="form" :readonly="true"></md-textarea>
+                </md-field>
               </md-table-cell>
             </md-table-row>
           </md-table>
@@ -195,7 +197,7 @@
               <h2 class="md-title" id="documents">Raw JSON</h2>
             </md-table-toolbar>
             <md-field>
-              <md-textarea id="raw" v-model="rawJSON" :readonly="true"></textarea>
+              <md-textarea id="raw" v-model="rawJSON" :readonly="true"></md-textarea>
             </md-field>
           </md-table>
         </div>
@@ -253,8 +255,14 @@
               </label>
               <md-textarea v-model="contentMapping" placeholder="
 
-                  http://url/*/specific | product
-                  http://url | other "></textarea>
+                  http://url/*/specific | product | article
+                  http://url | other "></md-textarea>
+            </md-field>
+            <md-field>
+              <label>
+                Remove elements
+              </label>
+              <md-textarea v-model="removeElements" placeholder="nav, aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object"></md-textarea>
             </md-field>
 
 
@@ -320,6 +328,7 @@
       authKey: '',
       rawJSON: '',
       contentMapping: '',
+      removeElements: 'nav, aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object',
       domainToLoad: '',
     },
     methods: {
@@ -476,6 +485,7 @@
             this.simplifyStructure,
             this.removeDuplicates,
             this.contentMapping,
+            this.removeElements,
             this.crawlComplete);
       },
       crawlComplete() {

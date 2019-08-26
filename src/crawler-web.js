@@ -14,6 +14,8 @@ const Crawler = require("./crawler");
  * @param {boolean} robots
  * @param {string} authKey
  * @param {boolean} removeDuplicates
+ * @param {string} contentMapping
+ * @param {string} removeElements
  * @param {function} completeHandler
  */
 window.crawl = function(url,
@@ -27,6 +29,7 @@ window.crawl = function(url,
                         simplifyStructure,
                         removeDuplicates,
                         contentMapping,
+                        removeElements,
                         completeHandler) {
   let instance = new Crawler(url, {
     downloadImages: downloadImages,
@@ -39,6 +42,7 @@ window.crawl = function(url,
     simplifyStructure: simplifyStructure,
     removeDuplicates: removeDuplicates,
     contentMapping: contentMapping,
+    removeElements: removeElements,
   });
 
   // Do something when we finish.

@@ -72,8 +72,10 @@ const CrawlerSettings = class {
     this.simplifyStructure = true;
     this.removeDuplicates = true;
     this.contentMapping = '';
+    this.removeElements = '';
     this.robots = true;
     this.authKey = '';
+    this.imageLinks = [];
     this.interval = 1000 * this.delay;
   }
 
@@ -90,10 +92,41 @@ const CrawlerSettings = class {
 
     // If excludeFilter exists, check we don't have it.
     if (this.excludeFilter) {
-      valid = valid && (url.indexOf(this.excludeFilter) === -1);
+      let excluded = this.excludeFilter.split(','),
+          index;
+      
+      for (index in excluded) {
+        valid = valid && (url.indexOf(excluded[index]) === -1);
+      }
+    }
+
+    // Don't download images unless we are supposed to.
+    if (!this.downloadImages) {
+      if (url.indexOf('.jpg') !== -1 ||
+          url.indexOf('.png') !== -1 ||
+          url.indexOf('.bmp') !== -1 ||
+          url.indexOf('.svg') !== -1 ||
+          url.indexOf('.gif') !== -1) {
+        this.imageLinks[url] = {
+          url: url,
+          data: url,
+        };
+        valid = false;
+      }
     }
 
     return valid;
+  }
+
+  /**
+   * Report about any image links we found and skipped.
+   */
+  getImageLinks() {
+    let links = this.imageLinks;
+
+    // Reset the list to empty.
+    this.imageLinks = [];
+    return links;
   }
 
 };

@@ -26,6 +26,18 @@ describe('Duplicates', function() {
     expect(pages[1].body).to.contain('second');
     expect(pages[2].body).to.contain('third');
     expect(pages[3].body).to.contain('fourth');
+
+    let titles = [
+      'Prefix 1 Suffix',
+      'Prefix 2 Suffix',
+      'Prefix 3 Suffix',
+      'Prefix 4 Suffix'
+    ];
+
+    let prefix = instance.findPrefix(titles);
+    let suffix = instance.findSuffix(titles);
+    expect(prefix).to.be('Prefix ');
+    expect(suffix).to.be(' Suffix');
   });
 
 });

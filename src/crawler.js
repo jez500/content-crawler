@@ -60,17 +60,25 @@ const Crawler = class {
    * Urls have finished loading, post process the content.
    */
   crawlComplete() {
+    // We are not downloading images, just add it.
+    let links = this.settings.getImageLinks(), url = '';
+
+    for (url in links) {
+      this.db.images[url] = links[url];
+    }
+
     // Turn assets into arrays.
     this.db.images = _.values(this.db.images);
     this.db.documents = _.keys(this.db.documents);
     this.db.forms = _.keys(this.db.forms);
     // Save db to JSON.
     if (this.db.pages.length > 0) {
-      if (this.settings.removeDuplicates) {
-        let duplicates = new Duplicates();
+      let duplicates = new Duplicates();
 
+      if (this.settings.removeDuplicates) {
         duplicates.removeDuplicates(this.db.pages);
       }
+      duplicates.removeDuplicateTitles(this.db.pages);
 
       this.saveDb();
       this.updateIndex();
@@ -182,7 +190,12 @@ const Crawler = class {
    * @return {jQuery}
    */
   extractContent(node) {
-    let valid = ['img', 'input', 'select', 'textarea', 'button'];
+    let valid = [
+      'img', 'input', 'select', 'textarea',
+      'button', 'canvas', 'map', 'svg', 'picture', 'source',
+      'time', 'video', 'object', 'audio',
+    ];
+
     if (this.settings.removeEmptyNodes &&
         node.text().trim() === '' &&
         node.children().length == 0 &&
@@ -203,7 +216,12 @@ const Crawler = class {
       if (this.settings.removeAttributes) {
         let attributes = node[0].attribs;
         let name = '';
-        let common = ['href', 'src', 'alt', 'role', 'name', 'value', 'type', 'title', 'width', 'height'];
+        let common = [
+          'href', 'src', 'alt', 'role', 'name', 'value',
+          'type', 'title', 'width', 'height', 'rows', 'cols',
+          'size', 'for', 'action', 'method', 'placeholder',
+          'colspan', 'rowspan'
+        ];
 
         for (name in attributes) {
           if (!common.includes(name)) {
@@ -254,19 +272,15 @@ const Crawler = class {
 
     // Strip some common things.
     if (this.settings.simplifyStructure) {
-      main.find('nav').remove();
-      main.find('aside').remove();
-      // Common navigation elements.
-      main.find('.navbar').remove();
-      main.find('.Breadcrumbs').remove();
-      main.find('header').remove();
-      main.find('head').remove();
-      main.find('footer').remove();
-      main.find('script').remove();
-      main.find('noscript').remove();
-      main.find('style').remove();
-      main.find('iframe').remove();
-      main.find('object').remove();
+      let removeList = this.settings.removeElements.split('|'),
+          search,
+          index;
+
+      for (index in removeList) {
+        search = removeList[index].trim();
+
+        main.find(search).remove();
+      }
     }
 
     // If there is a main region, jump to it.
@@ -281,22 +295,54 @@ const Crawler = class {
       }
     }
 
+    // Only process web page responses (xhtml is included).
+    if (context.contentType.indexOf('html') == -1) {
+      return;
+    }
+
     // Perform deep cleaning on the content.
-    let mainText = $.html(this.extractContent(main));
+    let contentType = this.mapContentType(context.url),
+        contentCount = 0,
+        article = '',
+        articles = [];
 
-    let res = {
-      title: context.$('title').text(),
-      url: context.url,
-      mediaType: context.contentType,
-      contentType: this.mapContentType(context.url),
-      size: Math.round((Buffer.byteLength(context.body) / 1024)),
-      forms: this.getForms(context),
-      images: this.getImages(context),
-      body: mainText,
-    };
+    if (contentType.search) {
+      articles = main.find(contentType.search);
+    } else {
+      articles = $(main);
+    }
+    articles.each(function(contentCount, article) {
+      let mainText = $.html(this.extractContent($(article)));
+      let res = {
+        title: context.$('title').text(),
+        url: context.url,
+        mediaType: context.contentType,
+        contentType: contentType.type,
+        size: Math.round((Buffer.byteLength(context.body) / 1024)),
+        forms: this.getForms(mainText),
+        images: this.getImages(mainText),
+        body: mainText,
+        search: '',
+      };
+      if (contentType.search) {
+        res.search = contentType.search;
+        res.url += '#' + contentCount;
 
-    // The result of the page cleaning is pushed to the db pages array.
-    this.db.pages.push(res);
+        let title = $('h1, h2, h3, h4', mainText).first().text();
+        if (title) {
+          title = title.trim();
+          this.log(title);
+          res.title = title;
+        } else {
+          res.title += ' (' + contentType.type + ', ' + contentCount + ')';
+        }
+      }
+
+      // The result of the page cleaning is pushed to the db pages array.
+      this.log('Content: ' + contentType.type + ' url: ' + res.url + ' search: ' + contentType.search);
+      this.log('Title: ' + res.title);
+      this.db.pages.push(res);
+    }.bind(this));
   }
 
   /**
@@ -304,13 +350,16 @@ const Crawler = class {
    *
    * The default type is page.
    * @param {string} url
-   * @return {string}
+   * @return {object}
+   *  - An object containing 'search' and 'contentType'
    */
   mapContentType(url) {
     let maps = this.settings.contentMapping.split(/\r?\n/),
         index,
         map,
-        line;
+        line,
+        search = '',
+        type;
 
     for (index in maps) {
       line = maps[index].split('|');
@@ -318,11 +367,19 @@ const Crawler = class {
         map = new RegExp('^' + line[0].trim().replace(/\*/g, '.*') + '/?$');
 
         if (map.test(url)) {
-          return line[1].trim();
+          this.log('Match url pattern: ' + '^' + line[0].trim().replace(/\*/g, '.*') + '/?$');
+          type = line[1].trim();
+          if (line.length > 2) {
+            search = line[2].trim();
+          }
+          return {
+            search: search,
+            type: type
+          };
         }
       }
     }
-    return 'page';
+    return { search: '', type: 'page' };
   }
 
   /**
@@ -344,10 +401,10 @@ const Crawler = class {
   getImages(context) {
     let images = {}, count = 0, dataUrl = 0;
 
-    let buffer = Buffer.from(context.body);
-    buffer = buffer.toString();
+   // let buffer = Buffer.from(context.body);
+    //buffer = buffer.toString();
 
-    $('img', buffer).each((i, d) => {
+    $('img', context).each((i, d) => {
       let imgUrl = $(d).attr('src');
 
       if (!imgUrl) {
@@ -410,7 +467,7 @@ const Crawler = class {
    */
   getForms(context) {
     let forms = [];
-    context.$('form').each((i ,d) => {
+    $('form', context).each((i ,d) => {
       let formKey = $.html(d);
       this.db.forms[ formKey ] = 'form';
       forms.push($(d).attr('action') + ' - Key: ' + formKey);
