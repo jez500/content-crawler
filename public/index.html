@@ -31,6 +31,10 @@
       width: 300px;
       max-width: calc(100vw - 125px);
     }
+    #rawHTML, .message {
+      padding-right: 2em;
+      padding-left: 2em;
+    }
     code {
       padding: 2px 3px;
       background: #eee;
@@ -123,12 +127,11 @@
             </md-table-toolbar>
 
             <md-table-row slot="md-table-row" slot-scope="{ item }">
-              <md-table-cell md-label="Title" md-sort-by="title"><a :href="'#' + item.id">{{ item.title }}</a></md-table-cell>
+              <md-table-cell md-label="Title" md-sort-by="title">{{ item.title }}</md-table-cell>
               <md-table-cell md-label="Count" md-sort-by="url">{{ item.count }}</md-table-cell>
             </md-table-row>
           </md-table>
 
-          <md-divider></md-divider><br /><br />
 
           <div v-if="!isServer">
             <md-button @click="moveSiteToServer" class="md-primary md-raised md-button">Move site to server</md-button>
@@ -136,10 +139,12 @@
 
           <md-divider></md-divider><br /><br />
 
+          <md-list>
+          <md-list-item md-expand>
+          <span class="md-list-item-text" id="images">Pages</span>
+          <md-list slot="md-expand">
+
           <md-table v-model="pages">
-            <md-table-toolbar>
-              <h2 class="md-title" id="pages">Pages</h2>
-            </md-table-toolbar>
 
             <md-table-row slot="md-table-row" slot-scope="{ item }">
               <md-table-cell md-label="Title" md-sort-by="title"><a :href="item.url" :title="item.body">{{ item.title }}</a></md-table-cell>
@@ -150,56 +155,75 @@
             </md-table-row>
           </md-table>
 
-          <md-divider></md-divider><br /><br />
+          </md-list>
+          </md-list-item>
+          <md-list-item md-expand>
+          <span class="md-list-item-text" id="images">Images</span>
+          <md-list slot="md-expand">
 
           <md-table v-if="images">
-            <md-table-toolbar>
-              <h2 class="md-title" id="images">Images</h2>
-            </md-table-toolbar>
 
-            <md-table-row slot="md-table-row" v-for="image in images">
+            <md-table-row slot="md-table-row" v-for="image in images" v-bind:key="image.url">
               <md-table-cell md-label="Image" md-sort-by="image"><a :href="image.url" target="_blank"><img :src="image.data" class="image--preview"> <br/> {{ image.url }}</a></md-table-cell>
             </md-table-row>
           </md-table>
 
           <md-divider></md-divider><br /><br />
 
-          <md-table v-if="documents">
-            <md-table-toolbar>
-              <h2 class="md-title" id="documents">Documents</h2>
-            </md-table-toolbar>
+          </md-list>
+          </md-list-item>
+          <md-list-item md-expand>
+          <span class="md-list-item-text" id="documents">Documents</span>
+          <md-list slot="md-expand">
 
-            <md-table-row slot="md-table-row" v-for="doc in documents">
+          <md-table v-if="documents">
+            <md-table-row slot="md-table-row" v-for="doc in documents" :doc-id="doc" :key="doc">
               <md-table-cell md-label="Document" md-sort-by="image"><a :href="doc" target="_blank">{{ doc }}</a></md-table-cell>
             </md-table-row>
           </md-table>
 
-          <md-divider></md-divider><br /><br />
-          <md-table v-if="forms">
-            <md-table-toolbar>
-              <h2 class="md-title" id="forms">Forms</h2>
-            </md-table-toolbar>
+          <div v-if="!documents.length">
+            <span class="md-list-item-text message">None</span>
+          </div>
 
-            <md-table-row slot="md-table-row" v-for="form in forms">
+          </md-list>
+          </md-list-item>
+          <md-list-item md-expand>
+          <span class="md-list-item-text" id="forms">Forms</span>
+          <md-list slot="md-expand">
+
+          <md-table v-if="forms">
+            <md-table-row slot="md-table-row" v-for="(form, formIndex) in forms" v-bind:key="form">
               <md-table-cell md-label="Form">
                 <md-field>
-                  <md-textarea id="raw" v-model="form" :readonly="true"></md-textarea>
+                  <md-textarea id="raw" v-model="forms[formIndex]" :readonly="true"></md-textarea>
                 </md-field>
               </md-table-cell>
             </md-table-row>
           </md-table>
 
-          <md-divider></md-divider><br /><br />
+          </md-list>
+          </md-list-item>
+          <md-list-item md-expand>
+          <span class="md-list-item-text" id="json">JSON</span>
+          <md-list slot="md-expand">
 
           <!-- Provide a way to extract the json so you can save it to a file -->
           <md-table>
-            <md-table-toolbar>
-              <h2 class="md-title" id="documents">Raw JSON</h2>
-            </md-table-toolbar>
+            <div id="rawHTML">
+              {{ updateJSON() }}
+            </div>
             <md-field>
-              <md-textarea id="raw" v-model="rawJSON" :readonly="true"></md-textarea>
+              <md-button @click="copyJsonToClipboard" class="md-primary">
+                Copy to clipboard
+              </md-button>
             </md-field>
           </md-table>
+
+          </md-list>
+          </md-list-item>
+          </md-list>
+
         </div>
 
         <div v-if="!indexLoaded">
@@ -339,6 +363,21 @@
           { title: 'Documents', count: this.results.documents.length, id: 'documents' },
           { title: 'Forms', count: this.results.forms.length, id: 'forms' },
         ]
+      },
+      updateJSON: function() {
+        setTimeout(function() {
+        // Attach the JSON to the page.
+        let raw = document.getElementById('rawHTML');
+        if (raw) {
+          while (raw.firstChild) {
+            raw.removeChild(raw.firstChild);
+          }
+          raw.appendChild(this.rawHTML);
+        }
+
+        }.bind(this), 1000);
+
+        return '';
       },
       removeClient: function(key) {
         if (!this.indexMaster) {
@@ -499,10 +538,13 @@
           .then((data) => {
             this.results = data.data;
             this.rawJSON = '';
+            this.rawHTML = null;
 
             try {
               this.rawJSON = JSON.stringify(this.results);
-            } catch (ex) {}
+              this.rawHTML = jsonToHtml(this.results);
+
+            } catch (ex) { }
 
             this.pages = this.results.pages;
             this.images = this.results.images;
@@ -511,6 +553,7 @@
             this.getOverview();
             this.siteLoaded = true;
             this.isServer = true;
+
           })
       },
       getStorage(key) {
@@ -530,6 +573,7 @@
 
             this.results = site;
             this.rawJSON = JSON.stringify(this.results);
+            this.rawHTML = jsonToHtml(this.results);
             this.pages = site.pages;
             this.images = site.images;
             this.documents = site.documents;
@@ -560,6 +604,14 @@
             }.bind(this);
           }.bind(this);
         }.bind(this);
+      },
+      copyJsonToClipboard: function() {
+        var source = document.createElement("textarea");
+        document.body.appendChild(source);
+        source.value = this.rawJSON;
+        source.select();
+        document.execCommand("copy");
+        document.body.removeChild(source);
       },
       homePage() {
         this.results.domain = '';

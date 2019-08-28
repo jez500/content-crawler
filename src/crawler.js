@@ -320,7 +320,7 @@ const Crawler = class {
         contentType: contentType.type,
         size: Math.round((Buffer.byteLength(context.body) / 1024)),
         forms: this.getForms(mainText),
-        images: this.getImages(mainText),
+        images: this.getImages(mainText, context.url),
         body: mainText,
         search: '',
       };
@@ -395,10 +395,11 @@ const Crawler = class {
    * to the list of urls to fetch.
    *
    * @param {Object} context
+   * @param {String} pageUrl
    * @return {Array}
    *   - An array with the urls as keys and metadata as values.
    */
-  getImages(context) {
+  getImages(context, pageUrl) {
     let images = {}, count = 0, dataUrl = 0;
 
    // let buffer = Buffer.from(context.body);
@@ -415,7 +416,7 @@ const Crawler = class {
 
       // Data urls don't need to be downloaded, just save them now.
       if (imgUrl.slice(0, 5) === 'data:') {
-        dataUrl = context.url + '#data' + (count++);
+        dataUrl = pageUrl + '#data' + (count++);
         // data:
         this.db.images[dataUrl] = {
           data: imgUrl.slice(5),
@@ -425,16 +426,7 @@ const Crawler = class {
       }
       else {
         // Relative urls need to be made full.
-        if (imgUrl.slice(0, 4) != 'http') {
-          if (imgUrl[1] == '/') {
-            imgUrl = 'http:' + imgUrl;
-          } else {
-            if (imgUrl[0] == '/') {
-              imgUrl = imgUrl.slice(1);
-            }
-            imgUrl = this.settings.startUrl + imgUrl;
-          }
-        }
+        imgUrl = (new URL(imgUrl, pageUrl)).href;
 
         // Query strings for images are likely duplicates.
         imgUrl.substring(imgUrl.indexOf("?") + 1);
