@@ -16,6 +16,10 @@
     .md-app {
       height: 100vh;
     }
+    .renderjson {
+      height: 60vh ! important;
+      overflow: auto ! important;
+    }
     md-app {
       display: none;
     }
@@ -121,10 +125,10 @@
 
         <div v-if="indexLoaded && siteLoaded">
 
+          <md-tabs>
+          <md-tab md-label="Overview">
+
           <md-table v-model="overview">
-            <md-table-toolbar>
-              <h2 class="md-title">Overview</h2>
-            </md-table-toolbar>
 
             <md-table-row slot="md-table-row" slot-scope="{ item }">
               <md-table-cell md-label="Title" md-sort-by="title">{{ item.title }}</md-table-cell>
@@ -137,12 +141,8 @@
             <md-button @click="moveSiteToServer" class="md-primary md-raised md-button">Move site to server</md-button>
           </div>
 
-          <md-divider></md-divider><br /><br />
-
-          <md-list>
-          <md-list-item md-expand>
-          <span class="md-list-item-text" id="images">Pages</span>
-          <md-list slot="md-expand">
+          </md-tab>
+          <md-tab md-label="Pages">
 
           <md-table v-model="pages">
 
@@ -155,11 +155,8 @@
             </md-table-row>
           </md-table>
 
-          </md-list>
-          </md-list-item>
-          <md-list-item md-expand>
-          <span class="md-list-item-text" id="images">Images</span>
-          <md-list slot="md-expand">
+          </md-tab>
+          <md-tab md-label="Images">
 
           <md-table v-if="images">
 
@@ -168,13 +165,8 @@
             </md-table-row>
           </md-table>
 
-          <md-divider></md-divider><br /><br />
-
-          </md-list>
-          </md-list-item>
-          <md-list-item md-expand>
-          <span class="md-list-item-text" id="documents">Documents</span>
-          <md-list slot="md-expand">
+          </md-tab>
+          <md-tab md-label="Documents">
 
           <md-table v-if="documents">
             <md-table-row slot="md-table-row" v-for="doc in documents" :doc-id="doc" :key="doc">
@@ -186,11 +178,8 @@
             <span class="md-list-item-text message">None</span>
           </div>
 
-          </md-list>
-          </md-list-item>
-          <md-list-item md-expand>
-          <span class="md-list-item-text" id="forms">Forms</span>
-          <md-list slot="md-expand">
+          </md-tab>
+          <md-tab md-label="Forms">
 
           <md-table v-if="forms">
             <md-table-row slot="md-table-row" v-for="(form, formIndex) in forms" v-bind:key="form">
@@ -202,11 +191,8 @@
             </md-table-row>
           </md-table>
 
-          </md-list>
-          </md-list-item>
-          <md-list-item md-expand>
-          <span class="md-list-item-text" id="json">JSON</span>
-          <md-list slot="md-expand">
+          </md-tab>
+          <md-tab md-label="JSON" ref="json-tab">
 
           <!-- Provide a way to extract the json so you can save it to a file -->
           <md-table>
@@ -220,9 +206,8 @@
             </md-field>
           </md-table>
 
-          </md-list>
-          </md-list-item>
-          </md-list>
+          </md-tab>
+          </md-tabs>
 
         </div>
 
@@ -366,16 +351,16 @@
       },
       updateJSON: function() {
         setTimeout(function() {
-        // Attach the JSON to the page.
-        let raw = document.getElementById('rawHTML');
-        if (raw) {
-          while (raw.firstChild) {
-            raw.removeChild(raw.firstChild);
+          // Attach the JSON to the page.
+          let raw = document.getElementById('rawHTML');
+          if (raw) {
+            while (raw.firstChild) {
+              raw.removeChild(raw.firstChild);
+            }
+            raw.appendChild(this.rawHTML);
           }
-          raw.appendChild(this.rawHTML);
-        }
 
-        }.bind(this), 1000);
+        }.bind(this), 500);
 
         return '';
       },
