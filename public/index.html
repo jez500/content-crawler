@@ -16,6 +16,7 @@
     .md-app {
       height: 100vh;
     }
+    .imagelist,
     .renderjson {
       height: 60vh ! important;
       overflow: auto ! important;
@@ -158,12 +159,27 @@
           </md-tab>
           <md-tab md-label="Images">
 
+          <div class="imglist">
           <md-table v-if="images">
 
             <md-table-row slot="md-table-row" v-for="image in images" v-bind:key="image.url">
-              <md-table-cell md-label="Image" md-sort-by="image"><a :href="image.url" target="_blank"><img :src="image.data" class="image--preview"> <br/> {{ image.url }}</a></md-table-cell>
+              <md-table-cell md-label="Image" md-sort-by="image">
+    <md-card>
+      <md-card-media-cover md-solid>
+        <md-card-media>
+          <a :href="image.url"><img :src="image.proxyUrl" alt="Image"></a>
+        </md-card-media>
+        <md-card-area>
+          <md-card-header>
+            <div class="md-subhead">{{ image.url }}</div>
+          </md-card-header>
+        </md-card-area>
+      </md-card-media-cover>
+    </md-card>
+              </md-table-cell>
             </md-table-row>
           </md-table>
+          </div>
 
           </md-tab>
           <md-tab md-label="Documents">
@@ -546,6 +562,7 @@
             this.siteLoaded = true;
             this.isServer = true;
 
+            this.resolveImages();
           })
       },
       getStorage(key) {
@@ -573,8 +590,26 @@
             this.getOverview();
             this.siteLoaded = true;
             this.isServer = false;
+            this.resolveImages();
           }.bind(this);
         }.bind(this);
+      },
+      resolveImages() {
+        let index, img, max = 10, loaded = 0;
+
+        for (index in this.images) {
+          img = this.images[index];
+
+          // We would DOS the proxy if we load too many images at once.
+          if (img.data.substring(0, 5) == 'data:') {
+            img.proxyUrl = img.data;
+          } else if (loaded >= max) {
+            img.proxyUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAAoCAQAAAARFX2XAAAAT0lEQVR42u3RMQEAAAgDIFfJgla3xg6oQPaGIhEiBCFCECIEIUIQIgQhCBGCECEIEYIQIQhBiBCECEGIEIQIQQhChCBECEKEIEQIQhDS7QFcIxvRsFIyiwAAAABJRU5ErkJggg==';
+          } else {
+            loaded++;
+            img.proxyUrl = this.proxy + img.data;
+          }
+        }
       },
       removeStorage(key) {
         let request = window.indexedDB.open('crawler');
