@@ -219,7 +219,7 @@ const Crawler = class {
         let common = [
           'href', 'src', 'alt', 'role', 'name', 'value',
           'type', 'title', 'width', 'height', 'rows', 'cols',
-          'size', 'for', 'action', 'method', 'placeholder',
+          'size', 'for', 'method', 'action', 'placeholder',
           'colspan', 'rowspan'
         ];
 
@@ -422,6 +422,7 @@ const Crawler = class {
           data: imgUrl.slice(5),
           url: dataUrl
         };
+        images[dataUrl] = this.db.images[dataUrl];
         this.log('Image data shortcut:', this.db.images[dataUrl]);
       }
       else {
@@ -445,6 +446,7 @@ const Crawler = class {
               data: imgUrl,
               url: imgUrl
             };
+            images[imgUrl] = this.db.images[imgUrl];
           }
         }
       }
