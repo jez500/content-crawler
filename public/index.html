@@ -400,8 +400,15 @@
           return [];
         }
 
+        let baseKey = prompt("Please enter the client ID", "client");
+
+        if (!baseKey) {
+          return [];
+        }
+
+        // Append a random string to the base key.
         let params = new URLSearchParams(),
-            key = Math.random().toString(36).substring(2, 8);
+            key = baseKey + '-' + Math.random().toString(36).substring(2, 8);
 
         params.append('action', 'add_client');
         params.append('key', key);
@@ -460,7 +467,7 @@
         }
 
         // Santize the key before we fetch it.
-        this.authKey = this.authKey.replace(/[^A-Za-z0-9]/g, "");
+        this.authKey = this.authKey.replace(/[^A-Za-z0-9\-]/g, "");
         let timestamp = (new Date()).getTime();
 
         axios.get(this.jsonDir + this.authKey + '-index.json?' + timestamp, {})

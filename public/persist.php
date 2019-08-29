@@ -103,8 +103,8 @@ function parse_request_remove() {
   $params['remove'] = $_POST['remove'];
 
   // Sanitise params.
-  $params['authKey'] = preg_replace('/[^A-Za-z0-9]/', '', $params['authKey']);
-  $params['remove'] = preg_replace('/[^\.A-Za-z0-9]/', '', $params['remove']);
+  $params['authKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['authKey']);
+  $params['remove'] = preg_replace('/[^\.A-Za-z0-9\-]/', '', $params['remove']);
   $params['remove'] = preg_replace('/\.\./', '', $params['remove']);
 
   foreach ($params as $key => $value) {
@@ -148,8 +148,8 @@ function parse_request_remove_client() {
   $params['key'] = $_POST['key'];
 
   // Sanitise params.
-  $params['authKey'] = preg_replace('/[^A-Za-z0-9]/', '', $params['authKey']);
-  $params['key'] = preg_replace('/[^\.A-Za-z0-9]/', '', $params['key']);
+  $params['authKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['authKey']);
+  $params['key'] = preg_replace('/[^\.A-Za-z0-9\-]/', '', $params['key']);
 
   foreach ($params as $key => $value) {
     if (!$value) {
@@ -171,8 +171,8 @@ function parse_request_add_client() {
   $params['key'] = $_POST['key'];
 
   // Sanitise params.
-  $params['authKey'] = preg_replace('/[^A-Za-z0-9]/', '', $params['authKey']);
-  $params['key'] = preg_replace('/[^\.A-Za-z0-9]/', '', $params['key']);
+  $params['authKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['authKey']);
+  $params['key'] = preg_replace('/[^\.A-Za-z0-9\-]/', '', $params['key']);
 
   foreach ($params as $key => $value) {
     if (!$value) {
@@ -197,8 +197,8 @@ function parse_request_add() {
   $params['raw'] = json_decode($params['json']);
 
   // Sanitise params.
-  $params['authKey'] = preg_replace('/[^A-Za-z0-9]/', '', $params['authKey']);
-  $params['domain'] = preg_replace('/[^\.A-Za-z0-9]/', '', $params['domain']);
+  $params['authKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['authKey']);
+  $params['domain'] = preg_replace('/[^\.A-Za-z0-9\-]/', '', $params['domain']);
   $params['domain'] = preg_replace('/\.\./', '', $params['domain']);
 
   foreach ($params as $key => $value) {
@@ -219,7 +219,7 @@ function parse_request_list() {
 
   $params['authKey'] = $_POST['authKey'];
   // Sanitise params.
-  $params['authKey'] = preg_replace('/[^A-Za-z0-9]/', '', $params['authKey']);
+  $params['authKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['authKey']);
 
   return $params;
 }

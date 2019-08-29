@@ -44,7 +44,7 @@ const CrawlerSettings = class {
       throw new Error('Auth key is required.');
     } else {
       // Only allow valid filename characters.
-      this.authKey = this.authKey.replace(/[^A-Za-z0-9]/g, "");
+      this.authKey = this.authKey.replace(/[^A-Za-z0-9\-]/g, "");
     }
   }
 
