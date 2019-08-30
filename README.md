@@ -9,7 +9,7 @@ Run `npm install` to include dependencies.
 
 ## Building
 
-Run `npm run build` to build the site. This includes all the node packages in a single file at `public/bundle.js`
+Run `npm run build` to build the site. This includes all the node packages in a single file at `public/bundle.js`. You must build the site as part of install.
 
 ## Testing
 
@@ -20,8 +20,7 @@ Run `npm run test` to run javascript tests with "Mocha" against the site.
 Run `npm run crawl FULL_URL_OF_SITE_TO_CRAWL CLIENT_SECRET_KEY` replacing `FULL_URL_OF_SITE_TO_CRAWL` with the start url of the site
 you want to crawl and CLIENT_SECRET_KEY with a unique string shared with this client. eg `npm run crawl http://example.com/ SECRET`.
 
-You can optionally pass a third argument that will filter only urls that contain this string. eg
-`npm run crawl http://example.com/foo example.com/foo`
+Full command line usage can be seen with: `npm run crawl -- --help`.
 
 ## Starting a crawl from the site.
 

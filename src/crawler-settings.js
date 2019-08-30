@@ -9,7 +9,7 @@ const CrawlerSettings = class {
    *  - The list of settings to apply to this web crawl.
    */
   constructor(startUrl = '', settings = {}) {
-    let propKey = null;
+    let propKey = null, showHelp = false;
 
     // Ensure there is a valid url to crawl.
     if (!startUrl) {
@@ -18,17 +18,16 @@ const CrawlerSettings = class {
 
     // Settings.
     this.defaultSettings(startUrl);
+    if (startUrl == '--help') {
+      throw new Error(this.generateHelp());
+    }
 
     for (propKey in settings) {
       if (Object.prototype.hasOwnProperty.call(settings, propKey)) {
-        if (!Object.prototype.hasOwnProperty.call(this, propKey)) {
+        if (!Object.prototype.hasOwnProperty.call(this, propKey) ||
+            propKey == 'help') {
 
-          let usage = "\n\n  Valid arguments are:\n\n",
-              key = '';
-
-          for (key in Object.keys(this)) {
-            usage += '   --' + key + ' ' + this[key] + "\n";
-          }
+          let usage = this.generateHelp();
 
           throw new Error('Invalid argument passed to settings: ' + propKey + usage);
         }
@@ -46,6 +45,25 @@ const CrawlerSettings = class {
       // Only allow valid filename characters.
       this.authKey = this.authKey.replace(/[^A-Za-z0-9\-]/g, "");
     }
+  }
+
+  /**
+   * Generate CLI usage instructions.
+   * @return {string}
+   */
+  generateHelp() {
+    let usage = "\n\n  Valid arguments are:\n\n",
+        key = '',
+        exclude = ['domain', 'protocol', 'proxy', 'imageLinks'];
+
+
+    Object.keys(this).forEach(key => {
+      if (!exclude.includes(key)) {
+        usage += '   --' + key + ' \'' + this[key] + "'\n";
+      }
+    });
+
+    return usage;
   }
 
   /**
@@ -72,7 +90,7 @@ const CrawlerSettings = class {
     this.simplifyStructure = true;
     this.removeDuplicates = true;
     this.contentMapping = '';
-    this.removeElements = '';
+    this.removeElements = 'nav, aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object';
     this.robots = true;
     this.authKey = '';
     this.imageLinks = [];
