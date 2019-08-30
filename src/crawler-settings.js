@@ -84,6 +84,7 @@ const CrawlerSettings = class {
     this.excludeFilter = '';
     this.proxy = '';
     this.downloadImages = false;
+    this.runScripts = false;
     this.removeEmptyNodes = true;
     this.removeAttributes = true;
     this.trimWhitespace = true;

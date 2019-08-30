@@ -319,6 +319,7 @@
                 <label> Delay between fetching pages (seconds) </label>
                 <md-input v-model="delay" type="number"></md-input>
               </md-field>
+              <md-checkbox v-model="runScripts"> Run scripts </md-checkbox>
               <md-checkbox v-model="downloadImages"> Download images </md-checkbox>
               <md-checkbox v-model="robots"> Respect "robots.txt" policy file. </md-checkbox>
               <md-checkbox v-model="removeEmptyNodes"> Remove empty tags </md-checkbox>
@@ -393,6 +394,7 @@
       url: '',
       proxy: 'https://cors-anywhere.herokuapp.com/',
       downloadImages: false,
+      runScripts: false,
       urlFilter: '',
       excludeFilter: '',
       delay: 5,
@@ -637,6 +639,7 @@
 
         window.crawl(this.url,
             this.downloadImages,
+            this.runScripts,
             this.urlFilter,
             this.excludeFilter,
             this.proxy,

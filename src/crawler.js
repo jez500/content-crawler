@@ -5,6 +5,7 @@ const Duplicates = require('./duplicates');
 const Url = require('url-parse');
 const _ = require('lodash');
 const $ = require('cheerio');
+const jsdom = require('jsdom');
 const CrawlerSettings = require('./crawler-settings');
 
 const Crawler = class {
@@ -122,11 +123,52 @@ const Crawler = class {
 
     // Patch the downloader to allow CORS requests using a proxy.
     instance._proxyUrl = this.settings.proxy;
+    instance._runScripts = this.settings.runScripts;
 
     // We are monkey patching the download function.
     instance._downloadUrlRaw = instance._downloadUrl;
     instance._downloadUrl = function(url, followRedirect) {
-      return this._downloadUrlRaw(this._proxyUrl + url, followRedirect);
+      let raw = this._downloadUrlRaw(this._proxyUrl + url, followRedirect);
+      let pageUrl = url;
+
+      return raw.then(function (param) {
+        if (!this._runScripts) {
+          return param;
+        }
+        // What we are doing here is running the javascript in a virtual DOM
+        // after loading the page. This allows content to be updated by js
+        // before we look at it.
+        let response = param;
+        let buffer = Buffer.from(response.body);
+        let html = buffer.toString();
+        let loader = new jsdom.ResourceLoader();
+        let proxyUrl = this._proxyUrl;
+
+        // Monkey patch again!
+        loader.fetchRaw = loader.fetch;
+        loader.fetch = function(urlString, options = {}) {
+          urlString = proxyUrl + urlString;
+          console.log(urlString);
+          return this.fetchRaw(urlString, options);
+        }.bind(loader);
+
+        let client = new jsdom.JSDOM(html, {
+          url: pageUrl,
+          referrer: pageUrl,
+          runScripts: "dangerously",
+          resources: loader,
+        });
+
+        return new Promise(function(resolve) {
+          // 5 seconds should be enough for anyone.
+          setTimeout(resolve.bind(this), 5000);
+        }.bind(this)).then(function(client, response) {
+          let q = client.serialize();
+          response.body = Buffer.from(q);
+
+          return response;
+        }.bind(this, client, response));
+      }.bind(this));
     }.bind(instance);
 
     instance.on('crawledurl', (url, errorCode, statusCode) => {

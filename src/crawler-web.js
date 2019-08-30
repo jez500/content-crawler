@@ -20,6 +20,7 @@ const Crawler = require("./crawler");
  */
 window.crawl = function(url,
                         downloadImages,
+                        runScripts,
                         urlFilter,
                         excludeFilter,
                         proxy,
@@ -33,6 +34,7 @@ window.crawl = function(url,
                         completeHandler) {
   let instance = new Crawler(url, {
     downloadImages: downloadImages,
+    runScripts: runScripts,
     urlFilter: urlFilter,
     excludeFilter: excludeFilter,
     proxy: proxy,
