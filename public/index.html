@@ -46,6 +46,14 @@
       border-radius: 3px;
       border: 1px solid #ccc;
     }
+    .data--paginate li.active {
+      font-weight: 800;
+    }
+    .data--paginate li {
+      list-style-type: none;
+      display: inline;
+      margin-right: 2em;
+    }
   </style>
 </head>
 
@@ -126,8 +134,8 @@
 
         <div v-if="indexLoaded && siteLoaded">
 
-          <md-tabs>
-          <md-tab md-label="Overview">
+          <md-tabs :md-active-tab="activeTab" @md-changed="tabChanged">
+          <md-tab md-label="Overview" id="overview">
 
           <md-table v-model="overview">
 
@@ -143,9 +151,9 @@
           </div>
 
           </md-tab>
-          <md-tab md-label="Pages">
+          <md-tab md-label="Pages" id="pages">
 
-          <md-table v-model="pages">
+          <md-table v-model="paginatedPages">
 
             <md-table-row slot="md-table-row" slot-scope="{ item }">
               <md-table-cell md-label="Title" md-sort-by="title"><a :href="item.url" :title="item.body">{{ item.title }}</a></md-table-cell>
@@ -155,60 +163,104 @@
               <md-table-cell md-label="Forms">{{ item.forms.length }}</md-table-cell>
             </md-table-row>
           </md-table>
+          <paginate
+            :v-model="pagesCurrentPage"
+            :click-handler="setPagesCurrentPage"
+            :page-count="Math.floor(this.results.pages.length / this.perPage)"
+            :page-range="3"
+            :margin-pages="2"
+            :class="'data--paginate'">
+          </paginate>
 
           </md-tab>
-          <md-tab md-label="Images">
+          <md-tab md-label="Images" id="images">
 
           <div class="imglist">
-          <md-table v-if="images">
+          <div v-if="images.length">
+          <md-table v-model="paginatedImages">
 
-            <md-table-row slot="md-table-row" v-for="image in images" v-bind:key="image.url">
-              <md-table-cell md-label="Image" md-sort-by="image">
-    <md-card>
-      <md-card-media-cover md-solid>
-        <md-card-media>
-          <a :href="image.url"><img :src="image.proxyUrl" alt="Image"></a>
-        </md-card-media>
-        <md-card-area>
-          <md-card-header>
-            <div class="md-subhead">{{ image.url }}</div>
-          </md-card-header>
-        </md-card-area>
-      </md-card-media-cover>
-    </md-card>
+            <md-table-row slot="md-table-row" slot-scope="image">
+              <md-table-cell md-label="Image">
+                <md-card>
+                  <md-card-media-cover md-solid>
+                    <md-card-media>
+                      <a :href="image.item.url"><img height="80" :src="image.item.proxyUrl" alt="Image"></a>
+                    </md-card-media>
+                    <md-card-area>
+                      <md-card-header>
+                        <div class="md-subhead">{{ image.item.url }}</div>
+                      </md-card-header>
+                    </md-card-area>
+                  </md-card-media-cover>
+                </md-card>
               </md-table-cell>
             </md-table-row>
           </md-table>
           </div>
+          <paginate
+            :v-model="imagesCurrentPage"
+            :click-handler="setImagesCurrentPage"
+            :page-count="Math.floor(this.results.images.length / this.perPage)"
+            :page-range="3"
+            :margin-pages="2"
+            :class="'data--paginate'">
+          </paginate>
+          </div>
+          <div v-if="!images.length">
+            <span class="md-list-item-text message">None</span>
+          </div>
 
           </md-tab>
-          <md-tab md-label="Documents">
+          <md-tab md-label="Documents" id="documents">
 
-          <md-table v-if="documents">
-            <md-table-row slot="md-table-row" v-for="doc in documents" :doc-id="doc" :key="doc">
-              <md-table-cell md-label="Document" md-sort-by="image"><a :href="doc" target="_blank">{{ doc }}</a></md-table-cell>
+          <div v-if="documents.length">
+          <md-table v-model="paginatedDocuments">
+            <md-table-row slot="md-table-row" slot-scope="doc">
+              <md-table-cell md-label="Document" md-sort-by="image"><a :href="doc" target="_blank">{{ doc.item }}</a></md-table-cell>
             </md-table-row>
           </md-table>
+          <paginate
+            :v-model="documentsCurrentPage"
+            :click-handler="setDocumentsCurrentPage"
+            :page-count="Math.floor(this.results.documents.length / this.perPage)"
+            :page-range="3"
+            :margin-pages="2"
+            :class="'data--paginate'">
+          </paginate>
+          </div>
 
           <div v-if="!documents.length">
             <span class="md-list-item-text message">None</span>
           </div>
 
           </md-tab>
-          <md-tab md-label="Forms">
+          <md-tab md-label="Forms" id="forms">
 
-          <md-table v-if="forms">
-            <md-table-row slot="md-table-row" v-for="(form, formIndex) in forms" v-bind:key="form">
+          <div v-if="forms.length">
+          <md-table v-model="paginatedForms">
+            <md-table-row slot="md-table-row" slot-scope="form">
               <md-table-cell md-label="Form">
                 <md-field>
-                  <md-textarea id="raw" v-model="forms[formIndex]" :readonly="true"></md-textarea>
+                  <md-textarea id="raw" v-model="form.item" :readonly="true"></md-textarea>
                 </md-field>
               </md-table-cell>
             </md-table-row>
           </md-table>
+          <paginate
+            :v-model="formsCurrentPage"
+            :click-handler="setFormsCurrentPage"
+            :page-count="Math.floor(this.results.forms.length / this.perPage)"
+            :page-range="3"
+            :margin-pages="2"
+            :class="'data--paginate'">
+          </paginate>
+          </div>
+          <div v-if="!forms.length">
+            <span class="md-list-item-text message">None</span>
+          </div>
 
           </md-tab>
-          <md-tab md-label="JSON" ref="json-tab">
+          <md-tab md-label="JSON" ref="json-tab" id="json">
 
           <!-- Provide a way to extract the json so you can save it to a file -->
           <md-table>
@@ -316,10 +368,12 @@
 <script src="bundle.js"></script>
 <script src="https://unpkg.com/vue"></script>
 <script src="https://unpkg.com/vue-material@beta"></script>
+<script src="https://unpkg.com/vuejs-paginate@latest"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js"></script>
 <script>
   Vue.use(VueMaterial.default);
+  Vue.component('paginate', VuejsPaginate);
 
   new Vue({
     el: '#app',
@@ -355,15 +409,75 @@
       contentMapping: '',
       removeElements: 'nav, aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object',
       domainToLoad: '',
+      perPage: 10,
+      pagesCurrentPage: 0,
+      imagesCurrentPage: 0,
+      documentsCurrentPage: 0,
+      formsCurrentPage: 0,
+      activeTab: 'overview',
+    },
+    computed: {
+      paginatedPages: function() {
+        let start = (this.pagesCurrentPage * this.perPage);
+        if (start > this.pages.length) {
+          this.pagesCurrentPage = 0;
+        }
+        return this.pages.slice(
+          this.pagesCurrentPage * this.perPage,
+          (this.pagesCurrentPage + 1) * this.perPage
+        );
+      },
+      paginatedImages: function() {
+        let start = (this.imagesCurrentPage * this.perPage);
+        if (start > this.images.length) {
+          this.imagesCurrentPage = 0;
+        }
+        return this.images.slice(
+          this.imagesCurrentPage * this.perPage,
+          (this.imagesCurrentPage + 1) * this.perPage
+        );
+      },
+      paginatedForms: function() {
+        let start = (this.formsCurrentPage * this.perPage);
+        if (start > this.forms.length) {
+          this.formsCurrentPage = 0;
+        }
+        return this.forms.slice(
+          this.formsCurrentPage * this.perPage,
+          (this.formsCurrentPage + 1) * this.perPage
+        );
+      },
+      paginatedDocuments: function() {
+        let start = (this.documentsCurrentPage * this.perPage);
+        if (start > this.documents.length) {
+          this.documentsCurrentPage = 0;
+        }
+        return this.documents.slice(
+          this.documentsCurrentPage * this.perPage,
+          (this.documentsCurrentPage + 1) * this.perPage
+        );
+      },
     },
     methods: {
+      setPagesCurrentPage: function(page) {
+        this.pagesCurrentPage = page - 1;
+      },
+      setImagesCurrentPage: function(page) {
+        this.imagesCurrentPage = page - 1;
+      },
+      setFormsCurrentPage: function(page) {
+        this.formsCurrentPage = page - 1;
+      },
+      setDocumentsCurrentPage: function(page) {
+        this.documentsCurrentPage = page - 1;
+      },
       getOverview: function() {
         this.overview = [
           { title: 'Pages', count: this.results.pages.length, id: 'pages' },
           { title: 'Images', count: this.results.images.length, id: 'images' },
           { title: 'Documents', count: this.results.documents.length, id: 'documents' },
           { title: 'Forms', count: this.results.forms.length, id: 'forms' },
-        ]
+        ];
       },
       updateJSON: function() {
         setTimeout(function() {
@@ -563,7 +677,16 @@
             this.isServer = true;
 
             this.resolveImages();
+            this.selectDefaultTab();
           })
+      },
+      tabChanged: function(id) {
+        this.activeTab = id;
+      },
+      selectDefaultTab() {
+        setTimeout(function() {
+          this.activeTab = 'overview';
+        }.bind(this), 200);
       },
       getStorage(key) {
         let request = window.indexedDB.open('crawler');
@@ -591,11 +714,12 @@
             this.siteLoaded = true;
             this.isServer = false;
             this.resolveImages();
+            this.selectDefaultTab();
           }.bind(this);
         }.bind(this);
       },
       resolveImages() {
-        let index, img, max = 10, loaded = 0;
+        let index, img, loaded = 0;
 
         for (index in this.images) {
           img = this.images[index];
@@ -603,8 +727,6 @@
           // We would DOS the proxy if we load too many images at once.
           if (img.data.substring(0, 5) == 'data:') {
             img.proxyUrl = img.data;
-          } else if (loaded >= max) {
-            img.proxyUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAAoCAQAAAARFX2XAAAAT0lEQVR42u3RMQEAAAgDIFfJgla3xg6oQPaGIhEiBCFCECIEIUIQIgQhCBGCECEIEYIQIQhBiBCECEGIEIQIQQhChCBECEKEIEQIQhDS7QFcIxvRsFIyiwAAAABJRU5ErkJggg==';
           } else {
             loaded++;
             img.proxyUrl = this.proxy + img.data;
