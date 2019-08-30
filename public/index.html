@@ -686,6 +686,15 @@
       selectDefaultTab() {
         setTimeout(function() {
           this.activeTab = 'overview';
+          // We want to trigger a change, so the pages are updated.
+          this.pagesCurrentPage = 10;
+          this.imagesCurrentPage = 10;
+          this.documentsCurrentPage = 10;
+          this.formsCurrentPage = 10;
+          this.pagesCurrentPage = 0;
+          this.imagesCurrentPage = 0;
+          this.documentsCurrentPage = 0;
+          this.formsCurrentPage = 0;
         }.bind(this), 200);
       },
       getStorage(key) {
