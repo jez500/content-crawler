@@ -561,6 +561,23 @@
         params.append('title', this.results.domain);
         params.append('json', this.rawJSON);
 
+        let settings = {
+          startUrl: this.url,
+          downloadImages: this.downloadImages,
+          runScripts: this.runScripts,
+          urlFilter: this.urlFilter,
+          excludeFilter: this.excludeFilter,
+          proxy: this.proxy,
+          delay: this.delay,
+          robots: this.robots,
+          authKey: this.authKey,
+          simplifyStructure: this.simplifyStructure,
+          removeDuplicates: this.removeDuplicates,
+          contentMapping: this.contentMapping,
+          removeElements: this.removeElements,
+        };
+        params.append('settings', JSON.stringify(settings));
+
         axios.post('persist.php', params).then(() => {
           let site = this.results.domain;
           this.removeStorage(site);
@@ -682,6 +699,24 @@
 
             this.resolveImages();
             this.selectDefaultTab();
+
+            axios.get(this.jsonDir + 'settings-' + file, {})
+              .then((data) => {
+                let settings = data.data;
+                this.url = settings.startUrl;
+                this.downloadImages = settings.downloadImages;
+                this.runScripts = settings.runScripts;
+                this.urlFilter = settings.urlFilter;
+                this.excludeFilter = settings.excludeFilter;
+                this.proxy = settings.proxy;
+                this.delay = settings.delay;
+                this.robots = settings.robots;
+                this.authKey = settings.authKey;
+                this.simplifyStructure = settings.simplifyStructure;
+                this.removeDuplicates = settings.removeDuplicates;
+                this.contentMapping = settings.contentMapping;
+                this.removeElements = settings.removeElements;
+              });
           })
       },
       tabChanged: function(id) {
@@ -728,6 +763,25 @@
             this.isServer = false;
             this.resolveImages();
             this.selectDefaultTab();
+
+            let settingsRequest = st.get(this.jsonDir + 'settings-' + key);
+            settingsRequest.onsuccess = function() {
+              let settings = settingsRequest.result;
+
+              this.url = settings.startUrl.href;
+              this.downloadImages = settings.downloadImages;
+              this.runScripts = settings.runScripts;
+              this.urlFilter = settings.urlFilter;
+              this.excludeFilter = settings.excludeFilter;
+              this.proxy = settings.proxy;
+              this.delay = settings.delay;
+              this.robots = settings.robots;
+              this.authKey = settings.authKey;
+              this.simplifyStructure = settings.simplifyStructure;
+              this.removeDuplicates = settings.removeDuplicates;
+              this.contentMapping = settings.contentMapping;
+              this.removeElements = settings.removeElements;
+            }.bind(this);
           }.bind(this);
         }.bind(this);
       },

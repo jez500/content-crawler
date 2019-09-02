@@ -548,6 +548,11 @@ const Crawler = class {
     this.storage.writeJson(fileName, this.db)
       .then(() => { this.log('Database updated'); })
       .catch(err => { this.log(err); });
+
+    fileName = this.settings.saveDir + '/settings-' + this.settings.domain + '.json';
+    this.storage.writeJson(fileName, this.settings)
+      .then(() => { this.log('Settings updated'); })
+      .catch(err => { this.log(err); });
   }
 
   /**

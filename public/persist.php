@@ -87,6 +87,7 @@ function perform_request_add($args, $indexJson) {
 
   file_put_contents($indexFile, $indexRaw);
   file_put_contents('sites/' . $siteFile, $args['json']);
+  file_put_contents('sites/settings-' . $siteFile, $args['settings']);
 
   return true;
 }
@@ -194,6 +195,7 @@ function parse_request_add() {
   $params['domain'] = $_POST['domain'];
   $params['title'] = $_POST['title'];
   $params['json'] = $_POST['json'];
+  $params['settings'] = $_POST['settings'];
   $params['raw'] = json_decode($params['json']);
 
   // Sanitise params.
