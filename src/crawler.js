@@ -7,6 +7,7 @@ const _ = require('lodash');
 const $ = require('cheerio');
 const jsdom = require('jsdom');
 const CrawlerSettings = require('./crawler-settings');
+const Score = require('./score');
 
 const Crawler = class {
 
@@ -57,6 +58,16 @@ const Crawler = class {
     this.completeHandler = this.log;
   }
 
+  scorePages() {
+    let i = 0, page,
+        instance = new Score();
+
+    for (i in this.db.pages) {
+      page = this.db.pages[i];
+      page.score = instance.scoreContent(page.body, 80);
+    }
+  }
+
   /**
    * Urls have finished loading, post process the content.
    */
@@ -78,11 +89,13 @@ const Crawler = class {
 
       if (this.settings.removeDuplicates) {
         duplicates.removeDuplicates(this.db.pages);
+        duplicates.removeDuplicateTitles(this.db.pages);
       }
-      duplicates.removeDuplicateTitles(this.db.pages);
 
       this.saveDb();
       this.updateIndex();
+
+      this.scorePages();
       this.log('Crawl complete!', this.db.pages.length + ' pages', this.db.images.length + ' images',
       this.db.documents.length + ' documents', this.db.forms.length + ' forms');
     } else {
@@ -365,7 +378,15 @@ const Crawler = class {
         images: this.getImages(mainText, context.url),
         body: mainText,
         search: '',
+        score: 0,
       };
+      let heading = $('h1', mainText).first().text();
+      if (heading) {
+        res.title = heading;
+      }
+      if (!res.title) {
+        res.title = res.url;
+      }
       if (contentType.search) {
         res.search = contentType.search;
         res.url += '#' + contentCount;
