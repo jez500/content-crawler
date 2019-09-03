@@ -69,7 +69,7 @@ const Crawler = class {
       result = instance.scoreContent(page.body, 80);
       page.score = result.score;
 
-      if (this.settings.simplifyStructure) {
+      if (this.settings.removeEmptyNodes) {
         page.body = result.content;
       }
     }
@@ -89,7 +89,7 @@ const Crawler = class {
     // Turn assets into arrays.
     this.db.images = _.values(this.db.images);
     this.db.documents = _.keys(this.db.documents);
-    this.db.forms = _.keys(this.db.forms);
+    this.db.forms = _.values(this.db.forms);
     // Save db to JSON.
     if (this.db.pages.length > 0) {
       let duplicates = new Duplicates();
@@ -381,7 +381,7 @@ const Crawler = class {
         mediaType: context.contentType,
         contentType: contentType.type,
         size: Math.round((Buffer.byteLength(context.body) / 1024)),
-        forms: this.getForms(mainText),
+        forms: this.getForms(mainText, context.url),
         images: this.getImages(mainText, context.url),
         body: mainText,
         search: '',
@@ -401,7 +401,6 @@ const Crawler = class {
         let title = $('h1, h2, h3, h4', mainText).first().text();
         if (title) {
           title = title.trim();
-          this.log(title);
           res.title = title;
         } else {
           res.title += ' (' + contentType.type + ', ' + contentCount + ')';
@@ -529,14 +528,23 @@ const Crawler = class {
    * @param {Object} context
    * @return {Array}
    */
-  getForms(context) {
-    let forms = [];
-    $('form', context).each((i ,d) => {
-      let formKey = $.html(d);
-      this.db.forms[ formKey ] = 'form';
-      forms.push($(d).attr('action') + ' - Key: ' + formKey);
+  getForms(context, pageUrl) {
+    let forms = {};
+    $('form', context).each((count, d) => {
+      let actionUrl = (new URL($(d).attr('action'), pageUrl)).href,
+        id = $(d).attr('id');
+
+      actionUrl = actionUrl.replace(/#.*$/, '');
+
+      let form = {
+        action: actionUrl,
+        form: $.html(d),
+      };
+      // Identify forms by the action Url and prevent duplicates.
+      this.db.forms[actionUrl] = form;
+      forms[actionUrl] = form;
     });
-    return forms;
+    return _.values(forms);
   }
 
   /**

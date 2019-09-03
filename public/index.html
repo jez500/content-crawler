@@ -156,8 +156,13 @@
           <md-table v-model="paginatedPages">
 
             <md-table-row slot="md-table-row" slot-scope="{ item }">
-              <md-table-cell md-label="Title" md-sort-by="title"><a :href="item.url" :title="item.body">{{ item.title }}</a></md-table-cell>
+              <md-table-cell md-label="Title" md-sort-by="title"><a :href="item.url">{{ item.title }}</a></md-table-cell>
               <md-table-cell md-label="Url" md-sort-by="url">{{ item.url }}</md-table-cell>
+              <md-table-cell md-label="Content">
+                <md-button @click="copyContentToClipboard(item.body)" class="md-primary">
+                  Copy
+                </md-button>
+              </md-table-cell>
               <md-table-cell md-label="Size" md-sort-by="size">{{ item.size }}KB</md-table-cell>
               <md-table-cell md-label="Images">{{ item.images .length }}</md-table-cell>
               <md-table-cell md-label="Forms">{{ item.forms.length }}</md-table-cell>
@@ -240,9 +245,16 @@
           <div v-if="forms.length">
           <md-table v-model="paginatedForms">
             <md-table-row slot="md-table-row" slot-scope="form">
+              <md-table-cell md-label="Action">
+                <md-field>
+                  {{ form.item.action }}
+                </md-field>
+              </md-table-cell>
               <md-table-cell md-label="Form">
                 <md-field>
-                  <md-textarea id="raw" v-model="form.item" :readonly="true"></md-textarea>
+                  <md-button @click="copyContentToClipboard(form.item.form)" class="md-primary">
+                    Copy
+                  </md-button>
                 </md-field>
               </md-table-cell>
             </md-table-row>
@@ -334,7 +346,7 @@
               </label>
               <md-textarea v-model="contentMapping" placeholder="
 
-                  http://url/*/specific | product | article
+                  http://url/*/specific | custom-content-type | css-search-string
                   http://url | other "></md-textarea>
             </md-field>
             <md-field>
@@ -825,6 +837,14 @@
         var source = document.createElement("textarea");
         document.body.appendChild(source);
         source.value = this.rawJSON;
+        source.select();
+        document.execCommand("copy");
+        document.body.removeChild(source);
+      },
+      copyContentToClipboard: function(content) {
+        var source = document.createElement("textarea");
+        document.body.appendChild(source);
+        source.value = content;
         source.select();
         document.execCommand("copy");
         document.body.removeChild(source);
