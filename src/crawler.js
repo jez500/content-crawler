@@ -59,12 +59,19 @@ const Crawler = class {
   }
 
   scorePages() {
-    let i = 0, page,
-        instance = new Score();
+    let i = 0,
+        page = {},
+        instance = new Score(),
+        result = {};
 
     for (i in this.db.pages) {
       page = this.db.pages[i];
-      page.score = instance.scoreContent(page.body, 80);
+      result = instance.scoreContent(page.body, 80);
+      page.score = result.score;
+
+      if (this.settings.simplifyStructure) {
+        page.body = result.content;
+      }
     }
   }
 
