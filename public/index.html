@@ -293,8 +293,7 @@
         </div>
 
         <div v-if="!indexLoaded">
-          <h2 class="md-title">Authenticate
-          <img src='doghouse.jpg' width="80" alt="" role="presentation"/></h2>
+          <h2 class="md-title">Website Crawler</h2>
           <p>To use this site you will require a valid login code.</p>
           <p>Enter the login code here</p>
           <div layout="row" layout-align="center center">
@@ -582,7 +581,6 @@
           proxy: this.proxy,
           delay: this.delay,
           robots: this.robots,
-          authKey: this.authKey,
           simplifyStructure: this.simplifyStructure,
           removeDuplicates: this.removeDuplicates,
           contentMapping: this.contentMapping,
@@ -723,7 +721,6 @@
                 this.proxy = settings.proxy;
                 this.delay = settings.delay;
                 this.robots = settings.robots;
-                this.authKey = settings.authKey;
                 this.simplifyStructure = settings.simplifyStructure;
                 this.removeDuplicates = settings.removeDuplicates;
                 this.contentMapping = settings.contentMapping;
@@ -836,7 +833,7 @@
       copyJsonToClipboard: function() {
         var source = document.createElement("textarea");
         document.body.appendChild(source);
-        source.value = this.rawJSON;
+        source.value = JSON.stringify(JSON.parse(this.rawJSON), null, 2);
         source.select();
         document.execCommand("copy");
         document.body.removeChild(source);
