@@ -80,16 +80,37 @@ const Crawler = class {
    */
   crawlComplete() {
     // We are not downloading images, just add it.
-    let links = this.settings.getImageLinks(), url = '';
+    let links = this.settings.getImageLinks(),
+      url = '',
+      link = null,
+      i = 0;
 
     for (url in links) {
       this.db.images[url] = links[url];
+    }
+    links = this.settings.getDocumentLinks();
+
+    for (url in links) {
+      link = links[url];
+      // Link it to the page.
+      for (i in this.db.pages) {
+        if (this.db.pages[i].url.replace(/#.*/, '') == link.contextUrl) {
+          this.db.pages[i].documents[link.url] = 'document';
+          break;
+        }
+      }
+
+      // Remove the context url and add it to the global list.
+      this.db.documents[url] = { url: link.url };
     }
 
     // Turn assets into arrays.
     this.db.images = _.values(this.db.images);
     this.db.documents = _.keys(this.db.documents);
     this.db.forms = _.values(this.db.forms);
+    for (i in this.db.pages) {
+      this.db.pages[i].documents = _.keys(this.db.pages[i].documents);
+    }
     // Save db to JSON.
     if (this.db.pages.length > 0) {
       let duplicates = new Duplicates();
@@ -168,7 +189,6 @@ const Crawler = class {
         loader.fetchRaw = loader.fetch;
         loader.fetch = function(urlString, options = {}) {
           urlString = proxyUrl + urlString;
-          console.log(urlString);
           return this.fetchRaw(urlString, options);
         }.bind(loader);
 
@@ -329,7 +349,7 @@ const Crawler = class {
         total = all._list.length,
         current = all._nextIndex,
         progress = Math.floor(current * 100 / total);
-    this.log(current + ' ( ' + progress + ' % ) complete of ' + total + ' urls');
+    this.log(current + ' complete of ' + total + ' urls ( ' + progress + ' % ).');
 
     let main = context.$('body');
 
@@ -405,6 +425,7 @@ const Crawler = class {
         body: mainText,
         search: '',
         score: 0,
+        documents: [],
       };
       let heading = $('h1', mainText).first().text();
       if (heading) {

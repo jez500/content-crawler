@@ -95,6 +95,7 @@ const CrawlerSettings = class {
     this.robots = true;
     this.authKey = '';
     this.imageLinks = [];
+    this.documentLinks = [];
     this.interval = 1000 * this.delay;
   }
 
@@ -119,16 +120,32 @@ const CrawlerSettings = class {
       }
     }
 
+    // Does this string end with any of the array elements?
+    let endsWith = function(suffix) {
+      return this.endsWith(suffix);
+    }.bind(url);
+
     // Don't download images unless we are supposed to.
     if (!this.downloadImages) {
-      if (url.indexOf('.jpg') !== -1 ||
-          url.indexOf('.png') !== -1 ||
-          url.indexOf('.bmp') !== -1 ||
-          url.indexOf('.svg') !== -1 ||
-          url.indexOf('.gif') !== -1) {
+      let imageSuffixes = ['.jpg', '.jpeg', '.png', '.svg', '.bmp', '.gif'];
+
+      if (imageSuffixes.some(endsWith)) {
+        // Don't download, just remember it.
         this.imageLinks[url] = {
           url: url,
           data: url,
+        };
+        valid = false;
+      }
+    }
+    if (valid) {
+      let documentSuffixes = ['.doc', '.docx', '.dot', '.pdf', '.xls', '.xlsx', '.ps', '.eps', '.rtf', '.ppt', '.pptx', '.odt'];
+
+      if (documentSuffixes.some(endsWith)) {
+        // Don't download, just remember it.
+        this.documentLinks[url] = {
+          url: url,
+          contextUrl: context_url,
         };
         valid = false;
       }
@@ -148,6 +165,16 @@ const CrawlerSettings = class {
     return links;
   }
 
+  /**
+   * Report about any document links we found and skipped.
+   */
+  getDocumentLinks() {
+    let links = this.documentLinks;
+
+    // Reset the list to empty.
+    this.documentLinks = [];
+    return links;
+  }
 };
 
 module.exports = CrawlerSettings;
