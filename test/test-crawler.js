@@ -87,10 +87,10 @@ describe('Crawler', function() {
     };
     let instance = new Crawler('http://localhost/', settings);
 
-    expect(instance.mapContentType('http://other.com/').type).to.be('other');
-    expect(instance.mapContentType('http://example.com/2/something').type).to.be('other2');
-    expect(instance.mapContentType('http://another.com/').type).to.be('page');
-    expect(instance.mapContentType('http://example.com/').type).to.be('example');
-    expect(instance.mapContentType('http://example.com/').search).to.be('article');
+    expect(instance.mapContentType('http://other.com/')[0].type).to.be('other');
+    expect(instance.mapContentType('http://example.com/2/something')[0].type).to.be('other2');
+    expect(instance.mapContentType('http://another.com/')[0].type).to.be('page');
+    expect(instance.mapContentType('http://example.com/')[0].type).to.be('example');
+    expect(instance.mapContentType('http://example.com/')[0].search).to.be('article');
   });
 });

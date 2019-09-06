@@ -325,6 +325,11 @@ const Crawler = class {
   textHander(context) {
     // Handler for each page. Add results to db.
     this.log("Processed", context.url);
+    let all = this.crawler.getUrlList(),
+        total = all._list.length,
+        current = all._nextIndex,
+        progress = Math.floor(current * 100 / total);
+    this.log(current + ' ( ' + progress + ' % ) complete of ' + total + ' urls');
 
     let main = context.$('body');
 
@@ -363,16 +368,30 @@ const Crawler = class {
     }
 
     // Perform deep cleaning on the content.
-    let contentType = this.mapContentType(context.url),
+    let contentTypeList = this.mapContentType(context.url),
         contentCount = 0,
+        contentType = null,
         article = '',
-        articles = [];
+        articles = [],
+        contentTypeIndex = 0,
+        matchingType = null;
 
-    if (contentType.search) {
-      articles = main.find(contentType.search);
-    } else {
-      articles = $(main);
+    for (contentTypeIndex = 0; contentTypeIndex < contentTypeList.length; contentTypeIndex++) {
+      contentType = contentTypeList[contentTypeIndex];
+      if (contentType.search) {
+        articles = main.find(contentType.search);
+        if (articles.length) {
+          matchingType = contentType;
+          break;
+        }
+        // The url matched, but there were no matching dom elements.
+      } else {
+        matchingType = contentType;
+        articles = $(main);
+        break;
+      }
     }
+
     articles.each(function(contentCount, article) {
       let mainText = $.html(this.extractContent($(article)));
       let res = {
@@ -406,6 +425,8 @@ const Crawler = class {
           res.title += ' (' + contentType.type + ', ' + contentCount + ')';
         }
       }
+      // Turn images into array.
+      res.images = _.values(res.images);
 
       // The result of the page cleaning is pushed to the db pages array.
       this.log('Content: ' + contentType.type + ' url: ' + res.url + ' search: ' + contentType.search);
@@ -419,8 +440,8 @@ const Crawler = class {
    *
    * The default type is page.
    * @param {string} url
-   * @return {object}
-   *  - An object containing 'search' and 'contentType'
+   * @return [{object}]
+   *  - A list of objects containing 'search' and 'contentType'
    */
   mapContentType(url) {
     let maps = this.settings.contentMapping.split(/\r?\n/),
@@ -428,7 +449,8 @@ const Crawler = class {
         map,
         line,
         search = '',
-        type;
+        type,
+        valid = [];
 
     for (index in maps) {
       line = maps[index].split('|');
@@ -441,14 +463,17 @@ const Crawler = class {
           if (line.length > 2) {
             search = line[2].trim();
           }
-          return {
+          // Dont return, we want a list of all possible matches.
+          valid.push({
             search: search,
             type: type
-          };
+          });
         }
       }
     }
-    return { search: '', type: 'page' };
+    // Fallback - always included it last.
+    valid.push({ search: '', type: 'page' });
+    return valid;
   }
 
   /**
@@ -504,20 +529,11 @@ const Crawler = class {
         // Apply same url filtering to images.
         let allow = this.settings.filterUrl(imgUrl, null);
 
-        if (allow) {
-          if (this.settings.downloadImages) {
-            // Queue it.
-            this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
-            images[imgUrl] = { url: imgUrl };
-          } else {
-            // We are not downloading images, just add it.
-            this.db.images[imgUrl] = {
-              data: imgUrl,
-              url: imgUrl
-            };
-            images[imgUrl] = this.db.images[imgUrl];
-          }
+        if (this.settings.downloadImages) {
+          // Queue it.
+          this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
         }
+        images[imgUrl] = { url: imgUrl };
       }
     });
     return images;
