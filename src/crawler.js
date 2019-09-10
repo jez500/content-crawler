@@ -95,21 +95,21 @@ const Crawler = class {
       // Link it to the page.
       for (i in this.db.pages) {
         if (this.db.pages[i].url.replace(/#.*/, '') == link.contextUrl) {
-          this.db.pages[i].documents[link.url] = 'document';
+          this.db.pages[i].documents[link.url] = { url: link.url, id: link.url };
           break;
         }
       }
 
       // Remove the context url and add it to the global list.
-      this.db.documents[url] = { url: link.url };
+      this.db.documents[url] = { url: link.url, id: link.url };
     }
 
     // Turn assets into arrays.
     this.db.images = _.values(this.db.images);
-    this.db.documents = _.keys(this.db.documents);
+    this.db.documents = _.values(this.db.documents);
     this.db.forms = _.values(this.db.forms);
     for (i in this.db.pages) {
-      this.db.pages[i].documents = _.keys(this.db.pages[i].documents);
+      this.db.pages[i].documents = _.values(this.db.pages[i].documents);
     }
     // Save db to JSON.
     if (this.db.pages.length > 0) {
@@ -425,7 +425,7 @@ const Crawler = class {
         body: mainText,
         search: '',
         score: 0,
-        documents: [],
+        documents: {},
       };
       let heading = $('h1', mainText).first().text();
       if (heading) {
@@ -535,7 +535,8 @@ const Crawler = class {
         // data:
         this.db.images[dataUrl] = {
           data: imgUrl.slice(5),
-          url: dataUrl
+          url: dataUrl,
+          id: dataUrl
         };
         images[dataUrl] = this.db.images[dataUrl];
         this.log('Image data shortcut:', this.db.images[dataUrl]);
@@ -554,7 +555,7 @@ const Crawler = class {
           // Queue it.
           this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
         }
-        images[imgUrl] = { url: imgUrl };
+        images[imgUrl] = { url: imgUrl, id: imgUrl };
       }
     });
     return images;

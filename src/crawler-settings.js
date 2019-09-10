@@ -134,6 +134,7 @@ const CrawlerSettings = class {
         this.imageLinks[url] = {
           url: url,
           data: url,
+          id: url,
         };
         valid = false;
       }
@@ -146,6 +147,7 @@ const CrawlerSettings = class {
         this.documentLinks[url] = {
           url: url,
           contextUrl: context_url,
+          id: url,
         };
         valid = false;
       }
