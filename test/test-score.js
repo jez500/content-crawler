@@ -4,7 +4,7 @@ const Score = require('../src/score');
 describe('Score', function() {
   it('Score should reflect the source', function() {
     let words = ['Shark', 'Bay', 'Western', 'Australia'],
-        tags = ['p', 'div', 'span', 'article'],
+        tags = ['object', 'div', 'span', 'style'],
         target = 100,
         i = 0,
         page1 = '',

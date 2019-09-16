@@ -112,10 +112,21 @@ const Score = class {
 
     for (index in lines) {
       if (lines[index].smoothScore < cutoff) {
+        // Reference: https://developer.mozilla.org/en-US/docs/Web/HTML/Element
+        let contentSectioning = ['address', 'article', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'hgroup', 'section', 'main'],
+          textContent = ['blockquote', 'dd', 'dl', 'dt', 'figcaption', 'figure', 'hr', 'li', 'ol', 'p', 'pre', 'ul'],
+          textSemantics = ['a', 'abbr', 'b', 'bdi', 'bdo', 'br', 'cite', 'code', 'data', 'dfn', 'em', 'i', 'kbd',
+                           'mark', 'q', 's', 'samp', 'strong', 'sub', 'sup', 'time', 'var'],
+          media = ['aria', 'audio', 'img', 'map', 'track', 'video', 'picture', 'source'],
+          table = ['caption', 'col', 'colgroup', 'table', 'tbody', 'td', 'tfoot', 'th', 'thead', 'tr'],
+          tagName = '',
+          tagAttributes = '',
+          endTag = false;
+        
         // Chop it!
         // Since we have at least some tags in the string,
         // but the string has too high a text/tag ratio,
-        // Lets trim all tags here.
+        // Lets trim non-semantic tags here.
         newLine = '';
         inTag = false;
         for (charIndex in lines[index].line) {
@@ -123,6 +134,9 @@ const Score = class {
 
           if (!inTag && c == '<') {
             inTag = true;
+            endTag = false;
+            tagName = '';
+            tagAttributes = '';
           }
 
           isWhitespace = whitespaceTest.test(c);
@@ -135,10 +149,37 @@ const Score = class {
               newLine += c;
               lastWhitespace = isWhitespace;
             }
+          } else {
+            if (c !== '<') {
+              if (tagName == '' && c == '/') {
+                endTag = true;
+              } else if (c != '>') {
+                if (!isWhitespace && tagAttributes == '') {
+                  tagName += c;
+                } else {
+                  tagAttributes += c;
+                } 
+              }
+            }
           }
 
           if (inTag && c == '>') {
             inTag = false;
+
+            // Only HTML tags about the "semantics".
+            if (contentSectioning.includes(tagName) ||
+                textContent.includes(tagName) ||
+                textSemantics.includes(tagName) ||
+                media.includes(tagName) ||
+                table.includes(tagName)) {
+
+              // Whitelist it.
+              if (endTag) {
+                newLine += '</' + tagName + '>';
+              } else {
+                newLine += '<' + tagName + tagAttributes + '>';
+              }
+            }
           }
         }
 
@@ -176,7 +217,7 @@ const Score = class {
    *   The score ranges from 0 to 100. The content has been filtered.
    */
   textToTagRatio(content) {
-    let lines = this.splitAndScoreLines(content, 100),
+    let lines = this.splitAndScoreLines(content, 180),
         index = 0, total = 0, score = 0, newContent = '';
 
     // Now lets work on it!
@@ -185,7 +226,7 @@ const Score = class {
     // Chop chop!
     newContent = this.filterContent(lines);
     // Rescore it (should be higher).
-    lines = this.splitAndScoreLines(newContent, 100);
+    lines = this.splitAndScoreLines(newContent, 180);
 
     for (index in lines) {
       total += lines[index].score;
@@ -211,7 +252,7 @@ const Score = class {
    * @return {score: number, content: string}
    *   The score ranges from 0 to 100.
    */
-  scoreContent(content, focus) {
+  scoreContent(content) {
     let result = {
       score: 0,
       content: ''

@@ -585,6 +585,8 @@
           removeDuplicates: this.removeDuplicates,
           contentMapping: this.contentMapping,
           removeElements: this.removeElements,
+          removeAttributes: this.removeAttributes,
+          removeEmptyNodes: this.removeEmptyNodes,
         };
         params.append('settings', JSON.stringify(settings));
 
@@ -666,14 +668,17 @@
         }
 
         window.crawl(this.url,
-            this.downloadImages,
-            this.runScripts,
+            this.authKey,
+            this.proxy,
             this.urlFilter,
             this.excludeFilter,
-            this.proxy,
             this.delay,
+            this.runScripts,
+            this.downloadImages,
             this.robots,
-            this.authKey,
+            this.removeEmptyNodes,
+            this.removeAttributes,
+            this.trimWhitespace,
             this.simplifyStructure,
             this.removeDuplicates,
             this.contentMapping,

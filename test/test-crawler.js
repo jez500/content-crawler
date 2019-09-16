@@ -29,7 +29,7 @@ describe('Crawler', function() {
       '<div role="main">' +
       '<div><span>Stuff to keep.</span></div>' +
       '<article></article>' +
-      '<a href="#goodbye">Link to remove</a>' +
+      '<a href="#goodbye">Link to keep</a>' +
       '<span remove-attribute="remove attribute"><img src="http://localhost/img" title="Image is ok" other="remove me"></span>' +
       'More stuff to keep.' +
       '</div>' +

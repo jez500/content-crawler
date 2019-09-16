@@ -66,7 +66,7 @@ const Crawler = class {
 
     for (i in this.db.pages) {
       page = this.db.pages[i];
-      result = instance.scoreContent(page.body, 80);
+      result = instance.scoreContent(page.body);
       page.score = result.score;
 
       if (this.settings.removeEmptyNodes) {
@@ -308,9 +308,6 @@ const Crawler = class {
         for (name in attributes) {
           if (!common.includes(name)) {
             node.removeAttr(name);
-          } else if (name == 'href' && node.attr(name)[0] == '#') {
-            // Node is a relative in page link. Remove it.
-            node.remove();
           }
         }
       }
@@ -599,7 +596,9 @@ const Crawler = class {
     this.prepareSaveDir();
     let fileName = this.settings.saveDir + '/' + this.settings.domain + '.json';
     this.storage.writeJson(fileName, this.db)
-      .then(() => { this.log('Database updated'); })
+      .then(() => { 
+        this.log('Database updated'); 
+      })
       .catch(err => { this.log(err); });
 
     fileName = this.settings.saveDir + '/settings-' + this.settings.domain + '.json';
