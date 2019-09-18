@@ -110,6 +110,7 @@ const Crawler = class {
     this.db.forms = _.values(this.db.forms);
     for (i in this.db.pages) {
       this.db.pages[i].documents = _.values(this.db.pages[i].documents);
+      this.db.pages[i].alias = this.generateAlias(this.db.pages[i].url);
     }
     // Save db to JSON.
     if (this.db.pages.length > 0) {
@@ -640,6 +641,18 @@ const Crawler = class {
    */
   isWeb() {
     return (typeof window != 'undefined');
+  }
+
+  /**
+   * Generate an alias url.
+   *
+   * @param string url
+   * @return string
+   */
+  generateAlias(url) {
+    let fullUrl = new URL(url);
+
+    return fullUrl.pathname;
   }
 
   /**
