@@ -34,6 +34,13 @@ const CrawlerSettings = class {
       }
     }
 
+    // Don't set undefined values.
+    for (propKey in settings) {
+      if (typeof (settings[propKey]) == 'undefined') {
+        delete settings[propKey];
+      }
+    }
+
     // Merge the default settings with those passed to the constructor.
     Object.assign(this, settings);
 
@@ -77,11 +84,15 @@ const CrawlerSettings = class {
     this.startUrl = url;
     this.domain = url.hostname;
     this.protocol = url.protocol;
-    this.delay = 5;
     this.concurrentRequestsLimit = 1;
     this.saveDir = './public/sites';
     this.urlFilter = '';
     this.excludeFilter = '';
+    this.delay = 5;
+    this.searchString = '';
+    this.replaceString = '';
+    this.redirectScript = '';
+    this.scriptExtensions = '';
     this.proxy = '';
     this.downloadImages = false;
     this.runScripts = false;
@@ -91,7 +102,7 @@ const CrawlerSettings = class {
     this.simplifyStructure = true;
     this.removeDuplicates = true;
     this.contentMapping = '';
-    this.removeElements = 'nav, aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object';
+    this.removeElements = 'nav, [role=navigation], aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object';
     this.robots = true;
     this.authKey = '';
     this.imageLinks = [];

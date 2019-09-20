@@ -76,6 +76,23 @@ const Crawler = class {
   }
 
   /**
+   * Turn this: "/cheese/burger" into this: "Cheese Burger".
+   */
+  sanitiseTitle(path) {
+    let all = [], i, clean = [];
+
+    path = path.replace(/_/g, ' ');
+    path = path.replace(/\//g, ' ');
+    all = path.split(' ');
+
+    for (i = 0; i < all.length; i++) {
+      all[i] = all[i].charAt(0).toUpperCase() + all[i].substring(1);
+    }
+
+    return all.join(' ').trim();
+  }
+
+  /**
    * Urls have finished loading, post process the content.
    */
   crawlComplete() {
@@ -83,7 +100,11 @@ const Crawler = class {
     let links = this.settings.getImageLinks(),
       url = '',
       link = null,
-      i = 0;
+      i = 0,
+      page = null,
+      pattern = null,
+      valid = true,
+      pages = [];
 
     for (url in links) {
       this.db.images[url] = links[url];
@@ -110,16 +131,157 @@ const Crawler = class {
     this.db.forms = _.values(this.db.forms);
     for (i in this.db.pages) {
       this.db.pages[i].documents = _.values(this.db.pages[i].documents);
-      this.db.pages[i].alias = this.generateAlias(this.db.pages[i].url);
     }
     // Save db to JSON.
     if (this.db.pages.length > 0) {
-      let duplicates = new Duplicates();
+      let duplicates = new Duplicates(),
+        genericTitle = '',
+        genericUrl = '';
 
       if (this.settings.removeDuplicates) {
         duplicates.removeDuplicates(this.db.pages);
         duplicates.removeDuplicateTitles(this.db.pages);
       }
+
+      // OK - final cleaning things.
+      // 1. Global string replacements on URLs and body text.
+      for (i in this.db.pages) {
+        page = this.db.pages[i];
+        valid = true;
+        if (!genericTitle) {
+          genericTitle = this.db.pages[i].title;
+          genericUrl = this.db.pages[i].url;
+        }
+
+        pattern = new RegExp(this.settings.searchString, 'g');
+        page.body = page.body.replace(pattern, this.settings.replaceString);
+        page.url = page.url.replace(pattern, this.settings.replaceString);
+
+        // 2. Clean the URL parameters
+        // Trailing slashes removed.
+        page.url = page.url.replace(/\/$/g, '');
+
+        // Query string removed.
+        page.url = page.url.replace(/\?.*$/g, '');
+
+        // Multiple slashes that is not a URL removed.
+        page.url = page.url.replace(/([^:])\/\//, '$1/');
+
+        // 4. Clean nasty redirect scripts from URLs and body text. Who invents this rubbish?
+        if (this.settings.redirectScript) {
+          pattern = new RegExp(this.settings.redirectScript, 'g');
+          if (pattern.test(page.url)) {
+            // Nuke it.
+            valid = false;
+          }
+          // Replace redirect links in the body.
+          page.body = page.body.replace(pattern, function(match, p1) {
+            return decodeURIComponent(p1);
+          });
+        }
+
+        // 5. Kill pages from a 404.
+        if (page.title.toLowerCase().includes('page not found') ||
+            page.title.toLowerCase().includes('page missing')) {
+          valid = false;
+        }
+        // 6. Kill bogus file extensions from webpages and urls.
+        let all = this.settings.scriptExtensions.split(','),
+          extIndex;
+
+        for (extIndex in all) {
+          if (all[extIndex]) {
+            page.url = page.url.replace(new RegExp('.' + all[extIndex], 'g'), '');
+            page.body = page.body.replace(new RegExp('.' + all[extIndex], 'g'), '');
+          }
+        }
+
+        // 3. Generate Aliases
+        // Generate a relative link from the URL.
+        page.alias = this.generateAlias(page.url);
+
+        // 7. Some pages have MULTIPLE h1s (really!?). We will take the last one if it happens.
+
+        pattern = /<h1>([^<]*)<\/h1>/g;
+        let matches = page.body.matchAll(pattern);
+        for (let match of matches) {
+          page.title = match[1];
+        }
+
+        // 8. Kill %20 invalid urls.
+        page.alias = decodeURIComponent(page.alias);
+
+        // 10. Generate Parents for the menu.
+
+        let parent = page.alias;
+        // Remove trailing slashes.
+        parent = parent.replace(/\/$/g, '');
+
+        // Get path sections.
+        parent = parent.split('/');
+        // Remove the last one.
+        parent.pop();
+        // Build a string again.
+        page.parent = parent.join('/');
+
+        // 11. For pages with a generic title, make a new one from the alias.
+        if (page.title == genericTitle) {
+          page.title = this.sanitiseTitle(page.alias);
+        }
+
+        // 12. For listing pages, keep the first page content but add a comment.
+        if (pages[page.alias]) {
+          valid = false;
+          pages[page.alias].body += '<!-- Listing page -->';
+        }
+
+        // 13. Decode entities in titles.
+        page.title = decodeURIComponent(page.title);
+
+        if (valid) {
+          // No duplicate aliases.
+          pages[page.alias] = page;
+        }
+      }
+
+      let doitagain = true;
+      let alias1 = '', alias2 = '', found = false;
+      while (doitagain) {
+        doitagain = false;
+
+        for (alias1 in pages) {
+          found = false;
+          page = pages[alias1];
+
+          for (alias2 in pages) {
+            if (page.parent == pages[alias2].alias) {
+              found = true;
+            }
+          }
+
+          if (!found && page.parent) {
+            let newpage = [];
+            newpage.url = genericUrl + page.parent;
+            newpage.alias = page.parent;
+            newpage.images = [];
+            newpage.documents = [];
+            newpage.forms = [];
+            newpage.body = '';
+            newpage.mediaType = 'text/html';
+            newpage.contentType = 'page';
+            parent = page.parent.split('/');
+            parent.pop();
+            newpage.parent = parent.join('/');
+            newpage.title = this.sanitiseTitle(newpage.alias);
+            pages[newpage.alias] = newpage;
+
+            doitagain = true;
+          }
+        }
+      }
+
+      // 15. Generate blank intermediate pages for the menu that are missing.
+      this.db.pages = _.values(pages);
 
       this.saveDb();
       this.updateIndex();

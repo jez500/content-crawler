@@ -331,6 +331,22 @@
                 <label> Delay between fetching pages (seconds) </label>
                 <md-input v-model="delay" type="number"></md-input>
               </md-field>
+              <md-field>
+                <label> Search Pattern </label>
+                <md-input v-model="searchString"></md-input>
+              </md-field>
+              <md-field>
+                <label> Replacement </label>
+                <md-input v-model="replaceString"></md-input>
+              </md-field>
+              <md-field>
+                <label> Redirect Script </label>
+                <md-input v-model="redirectScript"></md-input>
+              </md-field>
+              <md-field>
+                <label> Script extensions </label>
+                <md-input v-model="scriptExtensions"></md-input>
+              </md-field>
               <md-checkbox v-model="runScripts"> Run scripts </md-checkbox>
               <md-checkbox v-model="downloadImages"> Download images </md-checkbox>
               <md-checkbox v-model="robots"> Respect "robots.txt" policy file. </md-checkbox>
@@ -410,6 +426,10 @@
       urlFilter: '',
       excludeFilter: '',
       delay: 5,
+      searchString: '',
+      replaceString: '',
+      redirectScript: '',
+      scriptExtensions: '',
       robots: true,
       crawling: false,
       indexMaster: false,
@@ -580,6 +600,10 @@
           excludeFilter: this.excludeFilter,
           proxy: this.proxy,
           delay: this.delay,
+          searchString: this.searchString,
+          replaceString: this.replaceString,
+          redirectScript: this.redirectScript,
+          scriptExtensions: this.scriptExtensions,
           robots: this.robots,
           simplifyStructure: this.simplifyStructure,
           removeDuplicates: this.removeDuplicates,
@@ -673,6 +697,10 @@
             this.urlFilter,
             this.excludeFilter,
             this.delay,
+            this.searchString,
+            this.replaceString,
+            this.redirectScript,
+            this.scriptExtensions,
             this.runScripts,
             this.downloadImages,
             this.robots,
@@ -725,6 +753,10 @@
                 this.excludeFilter = settings.excludeFilter;
                 this.proxy = settings.proxy;
                 this.delay = settings.delay;
+                this.searchString = settings.searchString;
+                this.replaceString = settings.replaceString;
+                this.redirectScript = settings.redirectScript;
+                this.scriptExtensions = settings.scriptExtensions;
                 this.robots = settings.robots;
                 this.simplifyStructure = settings.simplifyStructure;
                 this.removeDuplicates = settings.removeDuplicates;
@@ -789,6 +821,10 @@
               this.excludeFilter = settings.excludeFilter;
               this.proxy = settings.proxy;
               this.delay = settings.delay;
+              this.searchString = settings.searchString;
+              this.replaceString = settings.replaceString;
+              this.redirectScript = settings.redirectScript;
+              this.scriptExtensions = settings.scriptExtensions;
               this.robots = settings.robots;
               this.authKey = settings.authKey;
               this.simplifyStructure = settings.simplifyStructure;
