@@ -13,7 +13,7 @@ describe('Crawler', function() {
     expect(instance).to.be.a(Crawler);
   });
 
-  it('extractContent should remove clean the content', function() {
+  it('extractContent should clean the content', function() {
     let settings = {
       saveDir: 'test',
       authKey: 'test',
@@ -44,6 +44,8 @@ describe('Crawler', function() {
     expect(content).to.contain('Stuff to keep');
     expect(content).to.contain('More stuff to keep');
     expect(content).to.contain('Image is ok');
+    // Links are made relative from the shortened startUrl.
+    expect(content).to.contain('src="/img"');
   });
 
   it('images should be extracted from content', function() {

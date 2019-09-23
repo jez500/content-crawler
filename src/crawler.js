@@ -458,9 +458,10 @@ const Crawler = class {
         node.text(node[0].data.replace(/\s+/g, ' '));
       }
       // Remove attributes from most tags.
+      let attributes = node[0].attribs;
+      let name = '';
+
       if (this.settings.removeAttributes) {
-        let attributes = node[0].attribs;
-        let name = '';
         let common = [
           'href', 'src', 'alt', 'role', 'name', 'value',
           'type', 'title', 'width', 'height', 'rows', 'cols',
@@ -472,6 +473,22 @@ const Crawler = class {
           if (!common.includes(name)) {
             node.removeAttr(name);
           }
+        }
+      }
+
+      // Change some links to relative.
+      let urlAttributes = ['href', 'src', 'action'];
+      for (name in attributes) {
+        if (urlAttributes.includes(name)) {
+          let domainUrl = new URL(this.settings.startUrl);
+          domainUrl = domainUrl.protocol + '//' + domainUrl.hostname;
+          let relative = node.attr(name);
+          let source = relative;
+          relative = relative.replace(new RegExp(domainUrl, 'gi'), '');
+          if (relative != source) {
+            node.attr('data-js-crawler-url', source);
+          }
+          node.attr(name, relative);
         }
       }
 
