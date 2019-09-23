@@ -26,6 +26,47 @@ function perform_request_list($args, $indexJson) {
 }
 
 /**
+ * Promote the "verify" request to a real account.
+ *
+ * @param array $args
+ * - The arguments for this request.
+ * @return array
+ */
+function perform_request_verify($args) {
+  $clients = [];
+  
+  $verifyFile = 'sites/verify.json';
+  $currentVerify = json_decode(file_get_contents($verifyFile));
+  $validClient = false;
+
+  foreach ($currentVerify as $index => $current) {
+    if ($current->key == $args['authKey']) {
+      $validClient = $current;
+      unset($currentVerify[$index]);
+    }
+  }
+
+  if (!$validClient) {
+    // Just redirect - no changes.
+    return header("Location: index.html");
+  }
+
+  // Create the index.
+  $indexFile = 'sites/' . $args['authKey'] . '-index.json';
+  $nosites = [];
+  file_put_contents($indexFile, json_encode($nosites));
+
+  // Save the contact details.
+  $infoFile = 'sites/' . $args['authKey'] . '-info.json';
+  file_put_contents($infoFile, json_encode($validClient));
+
+  // Rewrite the verify list.
+  $currentVerify = file_put_contents($verifyFile, json_encode($currentVerify));
+  
+  return header("Location: index.html");
+}
+
+/**
  * Make the change for the request.
  *
  * @param array $args
@@ -138,6 +179,134 @@ function perform_request_remove($args, $indexJson) {
 }
 
 /**
+ * Generate a random string of safe characters.
+ *
+ * @param int $length
+ * - The length for this string
+ * @return string
+ */
+function generate_random_string($length = 10) {
+    $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    $charactersLength = strlen($characters);
+    $randomString = '';
+    for ($i = 0; $i < $length; $i++) {
+        $randomString .= $characters[rand(0, $charactersLength - 1)];
+    }
+    return $randomString;
+}
+
+/**
+ * Generate a random string of safe characters.
+ *
+ * @param string $source
+ * @return string
+ */
+function obfuscate($source) {
+  $pre = substr($source, 0, -6);
+  $post = substr($source, -6);
+  return $pre . str_rot13($post);
+}
+
+/**
+ * Add this client to the "verify list".
+ *
+ * @param array $args
+ * - The arguments for this request.
+ * @return array
+ */
+function perform_request_new_client($args) {
+  $verifyFile = 'sites/verify.json';
+  $currentVerify = json_decode(file_get_contents($verifyFile));
+
+  foreach ($currentVerify as $current) {
+    if ($current->email == $args['email'] ||
+        $current->company == $args['company'] ||
+        $current->phone == $args['phone']) {
+      // Client has already requested access.
+      return false;
+    }
+  }
+
+  // Add this to the pending list.
+  $client = (object) $args;
+
+  $client->clientid = strtolower(preg_replace("/[^A-Za-z0-9 ]/", '', $client->company));
+  $client->key = $client->clientid . '-' . generate_random_string(6);
+  array_push($currentVerify, $client);
+  file_put_contents($verifyFile, json_encode($currentVerify));
+
+  // Send them an email about it.
+  $subject = 'Access to Website Crawler: ' . $client->company;
+
+  // the message
+  $msg = 'Dear ' . $client->firstName . ' ' . $client->lastName . "\n";
+  $msg .= "\n";
+  $msg .= "Thankyou for requesting access to the Website Crawler.\n";
+  $msg .= "\n";
+  $msg .= "An account has been created for you which will allow you to use\n";
+  $msg .= "the application.\n";
+  $msg .= "\n";
+  $link = 'http';
+  if(isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') {
+    $link = 'https';
+  }
+  $link .= '://' . $_SERVER['HTTP_HOST'];
+  $link .= '/persist.php?action=verify&authKey=' . obfuscate($client->key);
+  $msg .= 'Follow this verification link to complete the process.' . "\n";
+  $msg .= "\n";
+  $msg .= $link;
+  $msg .= "\n";
+  $msg .= "\n";
+  $msg .= 'Your login code for this site is: ' . $client->key . "\n";
+
+  // use wordwrap() if lines are longer than 70 characters
+  $msg = wordwrap($msg, 70);
+
+  // send email
+  mail($client->email, $subject, $msg);
+
+  return true;
+}
+
+/**
+ * Parse the post params for the new client contact.
+ *
+ * @return array
+ */
+function parse_request_new_client() {
+  $params = [];
+  $params['firstName'] = $_POST['firstName'];
+  $params['lastName'] = $_POST['lastName'];
+  $params['company'] = $_POST['company'];
+  $params['email'] = $_POST['email'];
+  $params['phone'] = $_POST['phone'];
+
+  foreach ($params as $key => $value) {
+    if (!$value) {
+      die('Invalid parameters');
+    }
+  }
+  return $params;
+}
+
+/**
+ * Parse the post params for the verify account action.
+ *
+ * @return array
+ */
+function parse_request_verify() {
+  $params = [];
+  $params['authKey'] = obfuscate($_GET['authKey']);
+
+  foreach ($params as $key => $value) {
+    if (!$value) {
+      die('Invalid parameters');
+    }
+  }
+  return $params;
+}
+
+/**
  * Parse the post params for the remove client request.
  *
  * @return array
@@ -244,6 +413,10 @@ function read_index($authKey) {
 $action = '';
 if (isset($_POST['action'])) {
   $action = $_POST['action'];
+} else if (isset($_GET['action'])) {
+  if ($_GET['action'] == 'verify') {
+    $action = $_GET['action'];
+  }
 }
 if (!$action) {
   die();
@@ -254,8 +427,11 @@ $perform = 'perform_request_' . $action;
 
 $args = $parse();
 
-$indexJson = read_index($args['authKey']);
-
-$response = $perform($args, $indexJson);
+if ($action == 'new_client' || $action = 'verify') {
+  $response = $perform($args);
+} else {
+  $indexJson = read_index($args['authKey']);
+  $response = $perform($args, $indexJson);
+}
 
 echo json_encode($response);

@@ -294,13 +294,60 @@
 
         <div v-if="!indexLoaded">
           <h2 class="md-title">Website Crawler</h2>
-          <p>To use this site you will require a valid login code.</p>
-          <p>Enter the login code here</p>
-          <div layout="row" layout-align="center center">
-            <input class="md-field" v-model="authKey" type="text" name="authKey" size="12">
-            <md-button @click="authenticate" class="md-primary">
-              Login
-            </md-button>
+          <div class="md-layout md-gutter">
+            <div v-if="!newClientResponse">
+              <div class="md-layout-item">
+                <div class="md-card">
+                  <div class="md-card-header">
+                    <h3>New clients</h3>
+                  </div>
+                  <div class="md-card-content">
+                    <p>Interested in a using this App? Contact us and we will create you a new login.</p>
+                    <form id="new-client" @submit.prevent="newClient">
+                      <input class="md-field" v-model="firstName" type="text" required
+                          name="firstName" placeholder="First name" size="12">
+                      <input class="md-field" v-model="lastName" type="text" required
+                          name="lastName" placeholder="Last name" size="12">
+                      <input class="md-field" v-model="company" type="text" required
+                          name="company" placeholder="Company" size="16">
+                      <input class="md-field" v-model="email" type="email" required
+                          name="email" placeholder="Email address" size="24">
+                      <input class="md-field" v-model="phone" type="tel" required
+                          name="phone" placeholder="Contact phone number" size="24">
+                      <md-button id="newClient" type="submit" class="md-primary">
+                        Contact Us
+                      </md-button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-if="newClientResponse">
+              <div class="md-layout-item">
+                <div class="md-card">
+                  <div class="md-card-header">
+                    <h3>Thankyou for contacting us.</h3>
+                  </div>
+                  <div class="md-card-content">
+                    <p>You will receive an email with the login details.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="md-layout-item">
+              <div class="md-card">
+                <div class="md-card-header">
+                  <h3>Existing clients</h3>
+                </div>
+                <div class="md-card-content">
+                  <p>Enter the login code here</p>
+                  <input class="md-field" v-model="authKey" type="text" name="authKey" size="12">
+                  <md-button @click="authenticate" class="md-primary">
+                    Login
+                  </md-button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div v-else>
@@ -449,6 +496,12 @@
       documentsCurrentPage: 0,
       formsCurrentPage: 0,
       activeTab: 'overview',
+      firstName: '',
+      lastName: '',
+      company: '',
+      email: '',
+      phone: '',
+      newClientResponse: '',
     },
     computed: {
       paginatedPages: function() {
@@ -631,6 +684,23 @@
           this.authenticate();
         });
 
+      },
+      newClient() {
+        // Append a random string to the base key.
+        let params = new URLSearchParams();
+
+        params.append('action', 'new_client');
+        params.append('firstName', this.firstName);
+        params.append('lastName', this.lastName);
+        params.append('company', this.company);
+        params.append('email', this.email);
+        params.append('phone', this.phone);
+
+        axios.post('persist.php', params).then(() => {
+          this.newClientResponse = true;
+        });
+        debugger;
+        return false;
       },
       authenticate() {
         if (!this.authKey) {
