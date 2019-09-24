@@ -342,7 +342,7 @@
                 <div class="md-card-content">
                   <p>Enter the login code here</p>
                   <input class="md-field" v-model="authKey" type="text" name="authKey" size="12">
-                  <md-button @click="authenticate" class="md-primary">
+                  <md-button @click="login" class="md-primary">
                     Login
                   </md-button>
                 </div>
@@ -353,7 +353,8 @@
         <div v-else>
           <div v-if="!siteLoaded">
             <div v-if="!crawling">
-            <h2 class="md-title">How to crawl a site</h2>
+            <h2>{{ this.company }}</h2>
+            <h3 class="md-title">Crawl a website</h3>
             <form id="crawl-settings" onsubmit="document.getElementById('crawl').click(); return false;">
               <p>
                 Enter the address of a site to crawl and press "Crawl" to add it to the list.
@@ -685,6 +686,22 @@
         });
 
       },
+      loadClient() {
+        let timestamp = (new Date()).getTime();
+        return axios.get(this.jsonDir + this.authKey + '-info.json?' + timestamp, {})
+          .then((response) => {
+             this.firstName = response.data.firstName;
+             this.lastName = response.data.lastName;
+             this.company = response.data.company;
+             this.phone = response.data.phone;
+             this.email = response.data.email;
+          });
+      },
+      login() {
+        this.authenticate().then(() => {
+          this.loadClient();
+        });
+      },
       newClient() {
         // Append a random string to the base key.
         let params = new URLSearchParams();
@@ -711,7 +728,7 @@
         this.authKey = this.authKey.replace(/[^A-Za-z0-9\-]/g, "");
         let timestamp = (new Date()).getTime();
 
-        axios.get(this.jsonDir + this.authKey + '-index.json?' + timestamp, {})
+        return axios.get(this.jsonDir + this.authKey + '-index.json?' + timestamp, {})
           .then((data) => {
             this.indexLoaded = true;
             this.index = _.toArray(data.data);
@@ -743,8 +760,11 @@
             .then((data) => {
               this.indexMaster = true;
               this.listClients();
+            }).catch((ex) => {
+              this.indexMaster = false;
+              // Not an error.
             });
-          }).catch((boo) => {
+          }).catch((ex) => {
             this.indexLoaded = false;
             this.index = [];
             alert('The login code was not correct. Please check it and try again.');
