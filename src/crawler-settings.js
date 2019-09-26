@@ -118,6 +118,11 @@ const CrawlerSettings = class {
    *  - Use this URL if true.
    */
   filterUrl(url, context_url) {
+    if (!context_url) {
+      context_url = this.startUrl;
+    }
+    url = new URL(url, context_url).href;
+
     // If urlFilter settings exists, check url contains it.
     let valid = !(this.urlFilter && url.indexOf(this.urlFilter) === -1);
 
@@ -136,31 +141,34 @@ const CrawlerSettings = class {
       return this.endsWith(suffix);
     }.bind(url);
 
-    // Don't download images unless we are supposed to.
-    if (!this.downloadImages) {
-      let imageSuffixes = ['.jpg', '.jpeg', '.png', '.svg', '.bmp', '.gif'];
+    let imageSuffixes = ['.jpg', '.jpeg', '.png', '.svg', '.bmp', '.gif'];
 
-      if (imageSuffixes.some(endsWith)) {
+    if (imageSuffixes.some(endsWith)) {
+      // We just want images from the same domain.
+      if ((new Url(url)).hostname == (new URL(this.startUrl)).hostname) {
         // Don't download, just remember it.
         this.imageLinks[url] = {
           url: url,
           data: url,
           id: url,
         };
-        valid = false;
       }
     }
     if (valid) {
       let documentSuffixes = ['.doc', '.docx', '.dot', '.pdf', '.xls', '.xlsx', '.ps', '.eps', '.rtf', '.ppt', '.pptx', '.odt'];
 
       if (documentSuffixes.some(endsWith)) {
-        // Don't download, just remember it.
-        this.documentLinks[url] = {
-          url: url,
-          contextUrl: context_url,
-          id: url,
-        };
-        valid = false;
+        // We just want documents from the same domain.
+        console.log('Compare document hosts');
+        console.log(url, this.startUrl);
+        if ((new Url(url)).hostname == (new URL(this.startUrl)).hostname) {
+          // Don't download, just remember it.
+          this.documentLinks[url] = {
+            url: url,
+            contextUrl: context_url,
+            id: url,
+          };
+        }
       }
     }
 

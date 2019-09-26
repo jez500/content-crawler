@@ -67,7 +67,7 @@
         <md-button class="md-icon-button" @click="toggleMenu" v-if="!menuVisible">
           <md-icon>menu</md-icon>
         </md-button>
-        <span class="md-title">{{ results.domain }}</span>
+        <span class="md-title"> {{company}} <span v-if="results.domain">: {{ results.domain }}</span></span>
       </md-app-toolbar>
 
       <md-app-drawer :md-active.sync="menuVisible" md-persistent="full">
@@ -103,9 +103,11 @@
             <md-button class="md-icon-button" @click="removeStorage(nav.title)"><md-icon>delete</md-icon></md-button>
           </md-list-item>
           <md-list-item>
-          <md-button @click="homePage" class="md-raised md-button">
+          <div v-if="(Object.keys(this.storage).length < this.localMax) || this.indexMaster">
+            <md-button @click="homePage" class="md-raised md-button">
               Add new website
-          </md-button>
+            </md-button>
+          </div>
           </md-list-item>
         </md-list>
         <div v-if="indexMaster">
@@ -113,10 +115,10 @@
           <md-list-item>
             <h4 class="md-subhead">Clients</h4>
           </md-list-item>
-          <md-list-item v-for="client in clients" :key="client.key">
+          <md-list-item v-for="client in clients" @click="getClient(client.key)" :key="client.key">
             <md-icon>bookmark_border</md-icon>
-            <span class="md-list-item-text">{{ client }}</span>
-            <md-button class="md-icon-button" @click="removeClient(client)"><md-icon>delete</md-icon></md-button>
+            <span class="md-list-item-text"><a href="#">{{ client.company }}</a></span>
+            <md-button class="md-icon-button" @click="removeClient(client.key)"><md-icon>delete</md-icon></md-button>
           </md-list-item>
           <md-list-item>
           <md-button @click="addClient" class="md-raised md-button">
@@ -132,7 +134,7 @@
 
       <md-app-content>
 
-        <div v-if="indexLoaded && siteLoaded">
+        <div v-if="indexLoaded && siteLoaded && !clientLoaded">
 
           <md-tabs :md-active-tab="activeTab" @md-changed="tabChanged">
           <md-tab md-label="Overview" id="overview">
@@ -147,7 +149,9 @@
 
 
           <div v-if="!isServer">
-            <md-button @click="moveSiteToServer" class="md-primary md-raised md-button">Move site to server</md-button>
+            <div v-if="(Object.keys(this.index).length < this.localMax) || this.indexMaster">
+              <md-button @click="moveSiteToServer" class="md-primary md-raised md-button">Move site to server</md-button>
+            </div>
           </div>
 
           </md-tab>
@@ -351,10 +355,9 @@
           </div>
         </div>
         <div v-else>
-          <div v-if="!siteLoaded">
+          <div v-if="!siteLoaded && !clientLoaded">
             <div v-if="!crawling">
-            <h2>{{ this.company }}</h2>
-            <h3 class="md-title">Crawl a website</h3>
+            <h2 class="md-title">Crawl a website</h2>
             <form id="crawl-settings" onsubmit="document.getElementById('crawl').click(); return false;">
               <p>
                 Enter the address of a site to crawl and press "Crawl" to add it to the list.
@@ -420,9 +423,11 @@
             </md-field>
 
 
-              <p>
-              <md-button id="crawl" @click="beginCrawl" class="md-primary md-raised md-button">Crawl</md-button>
-              </p>
+              <div v-if="(Object.keys(this.storage).length < this.localMax) || this.indexMaster">
+                <p>
+                  <md-button id="crawl" @click="beginCrawl" class="md-primary md-raised md-button">Crawl</md-button>
+                </p>
+              </div>
             </form>
             </div>
             <div v-if="crawling">
@@ -432,6 +437,35 @@
             </md-content>
             </div>
             <div class="log--crawler"> </div>
+          </div>
+        </div>
+        <div v-if="clientLoaded">
+          <h2 class="md-title">Client overview</h2>
+          <md-table>
+            <md-table-row>
+              <md-table-cell md-label="Client">{{ client.company + ': ' + client.firstName + ' ' + client.lastName }}</md-table-cell>
+              <md-table-cell md-label="Phone">{{ client.phone }}</md-table-cell>
+              <md-table-cell md-label="Email">{{ client.email }}</md-table-cell>
+              <md-table-cell md-label="Login">{{ client.key }}</md-table-cell>
+            </md-table-row>
+          </md-table>
+          <h3 class="md-subtitle">Sites</h3>
+          <md-list>
+            <md-list-item>
+              <h4 class="md-subhead">Shared</h4>
+            </md-list-item>
+            <md-list-item v-for="nav in index" @click="getSite(nav.file)" :key="nav.file">
+              <md-icon>bookmark_border</md-icon>
+              <span class="md-list-item-text"><a href='#'>{{ nav.title }}</a></span>
+            </md-list-item>
+          </md-list>
+          <md-field>
+            <label>Notes</label>
+            <md-textarea cols="80" v-model="client.notes"></md-textarea>
+          </md-field>
+          <md-button class="md-icon-button" @click="saveClientNotes"><md-icon>save</md-icon></md-button>
+          <div v-if="clientNotesSaved">
+            <md-content class="md-subhead">Notes saved</md-content>
           </div>
         </div>
 
@@ -459,6 +493,7 @@
       jsonDir: '/sites/',
       indexLoaded: false,
       siteLoaded: false,
+      clientLoaded: false,
       isServer: false,
       results: {},
       pages: [],
@@ -484,7 +519,7 @@
       removeEmptyNodes: true,
       removeAttributes: true,
       trimWhitespace: true,
-      simplifyStructure: true,
+      simplifyStructure: false,
       removeDuplicates: true,
       authKey: '',
       rawJSON: '',
@@ -502,7 +537,12 @@
       company: '',
       email: '',
       phone: '',
+      client: {},
+      clientNotesSaved: false,
       newClientResponse: '',
+
+      countSites: 0,
+      localMax: 3
     },
     computed: {
       paginatedPages: function() {
@@ -645,6 +685,7 @@
         params.append('domain', this.results.domain);
         params.append('title', this.results.domain);
         params.append('json', this.rawJSON);
+        this.siteCount += 1;
 
         let settings = {
           startUrl: this.url,
@@ -686,20 +727,29 @@
         });
 
       },
-      loadClient() {
+      loadClient(authKey) {
         let timestamp = (new Date()).getTime();
-        return axios.get(this.jsonDir + this.authKey + '-info.json?' + timestamp, {})
-          .then((response) => {
-             this.firstName = response.data.firstName;
-             this.lastName = response.data.lastName;
-             this.company = response.data.company;
-             this.phone = response.data.phone;
-             this.email = response.data.email;
-          });
+        return axios.get(this.jsonDir + authKey + '-info.json?' + timestamp, {});
       },
       login() {
         this.authenticate().then(() => {
-          this.loadClient();
+          this.loadClient(this.authKey)
+            .then((response) => {
+               this.firstName = response.data.firstName;
+               this.notes = response.data.notes;
+               this.lastName = response.data.lastName;
+               this.company = response.data.company;
+               this.phone = response.data.phone;
+               this.email = response.data.email;
+            }).catch((ex) => {
+              let message = 'Not specified';
+              this.notes = '';
+              this.firstName = message;
+              this.lastName = message;
+              this.company = message;
+              this.phone = message;
+              this.email = message;
+            });
         });
       },
       newClient() {
@@ -716,7 +766,6 @@
         axios.post('persist.php', params).then(() => {
           this.newClientResponse = true;
         });
-        debugger;
         return false;
       },
       authenticate() {
@@ -775,6 +824,9 @@
         this.menuVisible = !this.menuVisible
       },
       beginCrawl() {
+        if (this.storage && Object.keys(this.storage).length >= this.localMax && !this.indexMaster) {
+          return false;
+        }
         this.crawling = true;
 
         if (this.url.substring(0, 4) != 'http') {
@@ -809,6 +861,52 @@
         this.domainToLoad = url.hostname + '.json';
         this.authenticate();
       },
+      getClient(key) {
+        this.loadClient(key).then((response) => {
+          this.client.firstName = response.data.firstName;
+          this.client.lastName = response.data.lastName;
+          this.client.company = response.data.company;
+          this.client.phone = response.data.phone;
+          this.client.email = response.data.email;
+          this.client.key = response.data.key;
+          this.client.notes = response.data.notes;
+          this.clientNotesSaved = false;
+          this.clientLoaded = true;
+          this.siteLoaded = false;
+
+          let timestamp = (new Date()).getTime();
+
+          return axios.get(this.jsonDir + key + '-index.json?' + timestamp, {})
+            .then((data) => {
+              this.indexLoaded = true;
+              this.index = _.toArray(data.data);
+              this.menuVisible = true;
+            });
+
+        }).catch((ex) => {
+          // No info file for this client.
+          let message = 'Not specified';
+          this.client.firstName = message;
+          this.client.lastName = message;
+          this.client.company = message;
+          this.client.phone = message;
+          this.client.email = message;
+          this.client.key = key;
+          this.clientNotesSaved = false;
+          this.clientLoaded = true;
+          this.siteLoaded = false;
+
+          let timestamp = (new Date()).getTime();
+
+          return axios.get(this.jsonDir + key + '-index.json?' + timestamp, {})
+            .then((data) => {
+              this.indexLoaded = true;
+              this.index = _.toArray(data.data);
+              this.menuVisible = true;
+            });
+        });
+
+      },
       getSite(file) {
         axios.get(this.jsonDir + file, {})
           .then((data) => {
@@ -828,6 +926,7 @@
             this.forms = this.results.forms;
             this.getOverview();
             this.siteLoaded = true;
+            this.clientLoaded = false;
             this.isServer = true;
 
             this.resolveImages();
@@ -896,6 +995,7 @@
             this.forms = site.forms;
             this.getOverview();
             this.siteLoaded = true;
+            this.clientLoaded = false;
             this.isServer = false;
             this.resolveImages();
             this.selectDefaultTab();
@@ -916,7 +1016,6 @@
               this.redirectScript = settings.redirectScript;
               this.scriptExtensions = settings.scriptExtensions;
               this.robots = settings.robots;
-              this.authKey = settings.authKey;
               this.simplifyStructure = settings.simplifyStructure;
               this.removeDuplicates = settings.removeDuplicates;
               this.contentMapping = settings.contentMapping;
@@ -961,6 +1060,21 @@
           }.bind(this);
         }.bind(this);
       },
+      saveClientNotes: function() {
+        if (!this.indexMaster) {
+          return;
+        }
+        let params = new URLSearchParams();
+
+        params.append('action', 'save_notes');
+        params.append('notes', this.client.notes);
+        params.append('clientKey', this.client.key);
+        params.append('authKey', this.authKey);
+
+        axios.post('persist.php', params).then(() => {
+          this.clientNotesSaved = true;
+        });
+      },
       copyJsonToClipboard: function() {
         var source = document.createElement("textarea");
         document.body.appendChild(source);
@@ -980,6 +1094,7 @@
       homePage() {
         this.results.domain = '';
         this.siteLoaded = false;
+        this.clientLoaded = false;
       },
     }
   });

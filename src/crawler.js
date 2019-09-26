@@ -167,7 +167,7 @@ const Crawler = class {
         // Multiple slashes that is not a URL removed.
         page.url = page.url.replace(/([^:])\/\//, '$1/');
 
-        // 4. Clean nasty redirect scripts from URLs and body text. Who invents this rubbish?
+        // 4. Clean nasty redirect scripts from URLs and body text.
         if (this.settings.redirectScript) {
           pattern = new RegExp(this.settings.redirectScript, 'g');
           if (pattern.test(page.url)) {
@@ -184,6 +184,7 @@ const Crawler = class {
         if (page.title.toLowerCase().includes('page not found') ||
             page.title.toLowerCase().includes('page missing')) {
           valid = false;
+          this.log('Page not found: ' + page.url);
         }
         // 6. Kill bogus file extensions from webpages and urls.
         let all = this.settings.scriptExtensions.split(','),
@@ -213,16 +214,16 @@ const Crawler = class {
 
         // 10. Generate Parents for the menu.
 
-        let parent = page.alias;
+        let parentPage = page.alias;
         // Remove trailing slashes.
-        parent = parent.replace(/\/$/g, '');
+        parentPage = parentPage.replace(/\/$/g, '');
 
         // Get path sections.
-        parent = parent.split('/');
+        parentPage = parentPage.split('/');
         // Remove the last one.
-        parent.pop();
+        parentPage.pop();
         // Build a string again.
-        page.parent = parent.join('/');
+        page.parent = parentPage.join('/');
 
         // 11. For pages with a generic title, make a new one from the alias.
         if (page.title == genericTitle) {
@@ -260,7 +261,7 @@ const Crawler = class {
           }
 
           if (!found && page.parent) {
-            let newpage = [];
+            let newpage = {};
             newpage.url = genericUrl + page.parent;
             newpage.alias = page.parent;
             newpage.images = [];
@@ -269,11 +270,12 @@ const Crawler = class {
             newpage.body = '';
             newpage.mediaType = 'text/html';
             newpage.contentType = 'page';
-            parent = page.parent.split('/');
-            parent.pop();
-            newpage.parent = parent.join('/');
-            newpage.title = this.sanitiseTitle(newpage.alias);
+            let parentPage = page.parent.split('/');
+            let title = parentPage.pop();
+            newpage.parent = parentPage.join('/');
+            newpage.title = this.sanitiseTitle(title);
             pages[newpage.alias] = newpage;
+            this.log('Generate parent for page: ' + newpage.alias);
 
             doitagain = true;
           }
@@ -505,7 +507,7 @@ const Crawler = class {
     // Deeply nested divs and span with no meaning to the structure are hard to deal with.
     if (this.settings.simplifyStructure) {
       if ((node[0].tagName == 'div' || node[0].tagName == 'span') &&
-          node.parent().length != 0 && 
+          node.parent().length != 0 &&
           (node.parent()[0].tagName == 'div' || node.parent()[0].tagName == 'span')) {
         let innerHTML = node.html();
         node.replaceWith(innerHTML);
@@ -694,9 +696,6 @@ const Crawler = class {
   getImages(context, pageUrl) {
     let images = {}, count = 0, dataUrl = 0;
 
-   // let buffer = Buffer.from(context.body);
-    //buffer = buffer.toString();
-
     $('img', context).each((i, d) => {
       let imgUrl = $(d).attr('src');
 
@@ -731,6 +730,9 @@ const Crawler = class {
         if (this.settings.downloadImages) {
           // Queue it.
           this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
+        } else {
+          let proxyDownload = this.settings.proxy + imgUrl;
+          this.db.images[imgUrl] = { url: imgUrl, id: imgUrl, proxyUrl: proxyDownload, data: imgUrl};
         }
         images[imgUrl] = { url: imgUrl, id: imgUrl };
       }
@@ -776,8 +778,8 @@ const Crawler = class {
     this.prepareSaveDir();
     let fileName = this.settings.saveDir + '/' + this.settings.domain + '.json';
     this.storage.writeJson(fileName, this.db)
-      .then(() => { 
-        this.log('Database updated'); 
+      .then(() => {
+        this.log('Database updated');
       })
       .catch(err => { this.log(err); });
 

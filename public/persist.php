@@ -1,5 +1,7 @@
 <?php
 
+define('MAX_SITES_PER_CLIENT', 3);
+
 /**
  * Make the change for the request.
  *
@@ -18,7 +20,11 @@ function perform_request_list($args, $indexJson) {
     foreach (glob('sites/*-index.json') as $indexFile) {
       $key = substr($indexFile, strlen('sites/'));
       $key = substr($key, 0, - strlen('-index.json'));
-      array_push($clients, $key);
+
+      $infoFile = 'sites/' . $key . '-info.json';
+      $client = json_decode(file_get_contents($infoFile));
+
+      array_push($clients, $client);
     }
   }
   
@@ -42,6 +48,7 @@ function perform_request_verify($args) {
   foreach ($currentVerify as $index => $current) {
     if ($current->key == $args['authKey']) {
       $validClient = $current;
+      $validClient->notes = '';
       unset($currentVerify[$index]);
     }
   }
@@ -93,6 +100,25 @@ function perform_request_add_client($args, $indexJson) {
  * - The list of all sites.
  * @return array
  */
+function perform_request_save_notes($args, $indexJson) {
+  $infoFile = 'sites/' . $args['clientKey'] . '-info.json';
+  $client = json_decode(file_get_contents($infoFile));
+  $client->notes = $args['notes'];
+
+  file_put_contents($infoFile, json_encode($client));
+
+  return true;
+}
+
+/**
+ * Make the change for the request.
+ *
+ * @param array $args
+ * - The arguments for this request.
+ * @param array $indexJson
+ * - The list of all sites.
+ * @return array
+ */
 function perform_request_remove_client($args, $indexJson) {
   $masterFile = 'sites/' . $args['key'] . '-index.json.master';
   $indexFile = 'sites/' . $args['key'] . '-index.json';
@@ -117,6 +143,13 @@ function perform_request_remove_client($args, $indexJson) {
  */
 function perform_request_add($args, $indexJson) {
   $indexFile = 'sites/' . $args['authKey'] . '-index.json';
+  $masterFile = 'sites/' . $args['authKey'] . '-index.json.master';
+
+  $indexJson = (object)$indexJson;
+  // The client must be a valid master or we must be under the limit.
+  if (!file_exists($masterFile) && count(get_object_vars($indexJson)) >= MAX_SITES_PER_CLIENT) {
+    return false;
+  }
 
   $siteFile = $args['domain'] . '.json';
   $indexJson->{$args['domain']} = array(
@@ -353,6 +386,30 @@ function parse_request_add_client() {
 }
 
 /**
+ * Parse the post params for the save notes request.
+ *
+ * @return array
+ */
+function parse_request_save_notes() {
+  $params = [];
+
+  $params['authKey'] = $_POST['authKey'];
+  $params['notes'] = $_POST['notes'];
+  $params['clientKey'] = $_POST['clientKey'];
+
+  // Sanitise params.
+  $params['authKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['authKey']);
+  $params['clientKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['clientKey']);
+
+  foreach ($params as $key => $value) {
+    if (!$value) {
+      die('Invalid parameters');
+    }
+  }
+  return $params;
+}
+
+/**
  * Parse the post params for the add request.
  *
  * @return array
@@ -427,7 +484,7 @@ $perform = 'perform_request_' . $action;
 
 $args = $parse();
 
-if ($action == 'new_client' || $action = 'verify') {
+if ($action == 'new_client' || $action == 'verify') {
   $response = $perform($args);
 } else {
   $indexJson = read_index($args['authKey']);
