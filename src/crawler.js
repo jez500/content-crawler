@@ -107,7 +107,11 @@ const Crawler = class {
       pages = [];
 
     for (url in links) {
-      this.db.images[url] = links[url];
+      if (strlen($url) <= 128) {
+        this.db.images[url] = links[url];
+      } else {
+        this.db.imagesSkipped[url] = links[url];
+      }
     }
     links = this.settings.getDocumentLinks();
 
@@ -127,6 +131,7 @@ const Crawler = class {
 
     // Turn assets into arrays.
     this.db.images = _.values(this.db.images);
+    this.db.imagesSkipped = _.values(this.db.imagesSkipped);
     this.db.documents = _.values(this.db.documents);
     this.db.forms = _.values(this.db.forms);
     for (i in this.db.pages) {
