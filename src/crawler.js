@@ -244,6 +244,11 @@ const Crawler = class {
         // 13. Decode entities in titles.
         page.title = decodeURIComponent(page.title);
 
+        // All pages must have a title.
+        if (page.title.trim() == '') {
+          valid = false;
+        }
+
         if (valid) {
           // No duplicate aliases.
           pages[page.alias] = page;
