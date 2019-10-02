@@ -38,6 +38,18 @@ describe('Duplicates', function() {
     let suffix = instance.findSuffix(titles);
     expect(prefix).to.be('Prefix ');
     expect(suffix).to.be(' Suffix');
+
+    titles = [
+      'List 2 Finally',
+      'Long 1 y',
+      'Long 3 ally',
+      'Unique 4 And Finally'
+    ];
+
+    prefix = instance.findPrefix(titles);
+    suffix = instance.findSuffix(titles);
+    expect(prefix).to.be('');
+    expect(suffix).to.be('y');
   });
 
 });

@@ -16,6 +16,11 @@
     .md-app {
       height: 100vh;
     }
+    .imagelist,
+    .renderjson {
+      height: 60vh ! important;
+      overflow: auto ! important;
+    }
     md-app {
       display: none;
     }
@@ -31,11 +36,23 @@
       width: 300px;
       max-width: calc(100vw - 125px);
     }
+    #rawHTML, .message {
+      padding-right: 2em;
+      padding-left: 2em;
+    }
     code {
       padding: 2px 3px;
       background: #eee;
       border-radius: 3px;
       border: 1px solid #ccc;
+    }
+    .data--paginate li.active {
+      font-weight: 800;
+    }
+    .data--paginate li {
+      list-style-type: none;
+      display: inline;
+      margin-right: 2em;
     }
   </style>
 </head>
@@ -50,7 +67,7 @@
         <md-button class="md-icon-button" @click="toggleMenu" v-if="!menuVisible">
           <md-icon>menu</md-icon>
         </md-button>
-        <span class="md-title">{{ results.domain }}</span>
+        <span class="md-title"> {{company}} <span v-if="results.domain">: {{ results.domain }}</span></span>
       </md-app-toolbar>
 
       <md-app-drawer :md-active.sync="menuVisible" md-persistent="full">
@@ -86,9 +103,11 @@
             <md-button class="md-icon-button" @click="removeStorage(nav.title)"><md-icon>delete</md-icon></md-button>
           </md-list-item>
           <md-list-item>
-          <md-button @click="homePage" class="md-raised md-button">
+          <div v-if="(Object.keys(this.storage).length < this.localMax) || this.indexMaster">
+            <md-button @click="homePage" class="md-raised md-button">
               Add new website
-          </md-button>
+            </md-button>
+          </div>
           </md-list-item>
         </md-list>
         <div v-if="indexMaster">
@@ -96,10 +115,10 @@
           <md-list-item>
             <h4 class="md-subhead">Clients</h4>
           </md-list-item>
-          <md-list-item v-for="client in clients" :key="client.key">
+          <md-list-item v-for="client in clients" @click="getClient(client.key)" :key="client.key">
             <md-icon>bookmark_border</md-icon>
-            <span class="md-list-item-text">{{ client }}</span>
-            <md-button class="md-icon-button" @click="removeClient(client)"><md-icon>delete</md-icon></md-button>
+            <span class="md-list-item-text"><a href="#">{{ client.company }}</a></span>
+            <md-button class="md-icon-button" @click="removeClient(client.key)"><md-icon>delete</md-icon></md-button>
           </md-list-item>
           <md-list-item>
           <md-button @click="addClient" class="md-raised md-button">
@@ -115,109 +134,230 @@
 
       <md-app-content>
 
-        <div v-if="indexLoaded && siteLoaded">
+        <div v-if="indexLoaded && siteLoaded && !clientLoaded">
+
+          <md-tabs :md-active-tab="activeTab" @md-changed="tabChanged">
+          <md-tab md-label="Overview" id="overview">
 
           <md-table v-model="overview">
-            <md-table-toolbar>
-              <h2 class="md-title">Overview</h2>
-            </md-table-toolbar>
 
             <md-table-row slot="md-table-row" slot-scope="{ item }">
-              <md-table-cell md-label="Title" md-sort-by="title"><a :href="'#' + item.id">{{ item.title }}</a></md-table-cell>
+              <md-table-cell md-label="Title" md-sort-by="title">{{ item.title }}</md-table-cell>
               <md-table-cell md-label="Count" md-sort-by="url">{{ item.count }}</md-table-cell>
             </md-table-row>
           </md-table>
 
-          <md-divider></md-divider><br /><br />
 
           <div v-if="!isServer">
-            <md-button @click="moveSiteToServer" class="md-primary md-raised md-button">Move site to server</md-button>
+            <div v-if="(Object.keys(this.index).length < this.localMax) || this.indexMaster">
+              <md-button @click="moveSiteToServer" class="md-primary md-raised md-button">Move site to server</md-button>
+            </div>
           </div>
 
-          <md-divider></md-divider><br /><br />
+          </md-tab>
+          <md-tab md-label="Pages" id="pages">
 
-          <md-table v-model="pages">
-            <md-table-toolbar>
-              <h2 class="md-title" id="pages">Pages</h2>
-            </md-table-toolbar>
+          <md-table v-model="paginatedPages">
 
             <md-table-row slot="md-table-row" slot-scope="{ item }">
-              <md-table-cell md-label="Title" md-sort-by="title"><a :href="item.url" :title="item.body">{{ item.title }}</a></md-table-cell>
+              <md-table-cell md-label="Title" md-sort-by="title"><a :href="item.url">{{ item.title }}</a></md-table-cell>
               <md-table-cell md-label="Url" md-sort-by="url">{{ item.url }}</md-table-cell>
+              <md-table-cell md-label="Content">
+                <md-button @click="copyContentToClipboard(item.body)" class="md-primary">
+                  Copy
+                </md-button>
+              </md-table-cell>
               <md-table-cell md-label="Size" md-sort-by="size">{{ item.size }}KB</md-table-cell>
               <md-table-cell md-label="Images">{{ item.images .length }}</md-table-cell>
               <md-table-cell md-label="Forms">{{ item.forms.length }}</md-table-cell>
+              <md-table-cell md-label="Score">{{ item.score }}</md-table-cell>
             </md-table-row>
           </md-table>
+          <paginate
+            :v-model="pagesCurrentPage"
+            :click-handler="setPagesCurrentPage"
+            :page-count="Math.floor(this.results.pages.length / this.perPage)"
+            :page-range="3"
+            :margin-pages="2"
+            :class="'data--paginate'">
+          </paginate>
 
-          <md-divider></md-divider><br /><br />
+          </md-tab>
+          <md-tab md-label="Images" id="images">
 
-          <md-table v-if="images">
-            <md-table-toolbar>
-              <h2 class="md-title" id="images">Images</h2>
-            </md-table-toolbar>
+          <div class="imglist">
+          <div v-if="images.length">
+          <md-table v-model="paginatedImages">
 
-            <md-table-row slot="md-table-row" v-for="image in images">
-              <md-table-cell md-label="Image" md-sort-by="image"><a :href="image.url" target="_blank"><img :src="image.data" class="image--preview"> <br/> {{ image.url }}</a></md-table-cell>
+            <md-table-row slot="md-table-row" slot-scope="image">
+              <md-table-cell md-label="Image">
+                <md-card>
+                  <md-card-media-cover md-solid>
+                    <md-card-media>
+                      <a :href="image.item.url"><img height="80" :src="image.item.proxyUrl" alt="Image"></a>
+                    </md-card-media>
+                    <md-card-area>
+                      <md-card-header>
+                        <div class="md-subhead">{{ image.item.url }}</div>
+                      </md-card-header>
+                    </md-card-area>
+                  </md-card-media-cover>
+                </md-card>
+              </md-table-cell>
             </md-table-row>
           </md-table>
+          </div>
+          <paginate
+            :v-model="imagesCurrentPage"
+            :click-handler="setImagesCurrentPage"
+            :page-count="Math.floor(this.results.images.length / this.perPage)"
+            :page-range="3"
+            :margin-pages="2"
+            :class="'data--paginate'">
+          </paginate>
+          </div>
+          <div v-if="!images.length">
+            <span class="md-list-item-text message">None</span>
+          </div>
 
-          <md-divider></md-divider><br /><br />
+          </md-tab>
+          <md-tab md-label="Documents" id="documents">
 
-          <md-table v-if="documents">
-            <md-table-toolbar>
-              <h2 class="md-title" id="documents">Documents</h2>
-            </md-table-toolbar>
-
-            <md-table-row slot="md-table-row" v-for="doc in documents">
-              <md-table-cell md-label="Document" md-sort-by="image"><a :href="doc" target="_blank">{{ doc }}</a></md-table-cell>
+          <div v-if="documents.length">
+          <md-table v-model="paginatedDocuments">
+            <md-table-row slot="md-table-row" slot-scope="doc">
+              <md-table-cell md-label="Document" md-sort-by="image"><a :href="doc" target="_blank">{{ doc.item }}</a></md-table-cell>
             </md-table-row>
           </md-table>
+          <paginate
+            :v-model="documentsCurrentPage"
+            :click-handler="setDocumentsCurrentPage"
+            :page-count="Math.floor(this.results.documents.length / this.perPage)"
+            :page-range="3"
+            :margin-pages="2"
+            :class="'data--paginate'">
+          </paginate>
+          </div>
 
-          <md-divider></md-divider><br /><br />
-          <md-table v-if="forms">
-            <md-table-toolbar>
-              <h2 class="md-title" id="forms">Forms</h2>
-            </md-table-toolbar>
+          <div v-if="!documents.length">
+            <span class="md-list-item-text message">None</span>
+          </div>
 
-            <md-table-row slot="md-table-row" v-for="form in forms">
+          </md-tab>
+          <md-tab md-label="Forms" id="forms">
+
+          <div v-if="forms.length">
+          <md-table v-model="paginatedForms">
+            <md-table-row slot="md-table-row" slot-scope="form">
+              <md-table-cell md-label="Action">
+                <md-field>
+                  {{ form.item.action }}
+                </md-field>
+              </md-table-cell>
               <md-table-cell md-label="Form">
                 <md-field>
-                  <md-textarea id="raw" v-model="form" :readonly="true"></md-textarea>
+                  <md-button @click="copyContentToClipboard(form.item.form)" class="md-primary">
+                    Copy
+                  </md-button>
                 </md-field>
               </md-table-cell>
             </md-table-row>
           </md-table>
+          <paginate
+            :v-model="formsCurrentPage"
+            :click-handler="setFormsCurrentPage"
+            :page-count="Math.floor(this.results.forms.length / this.perPage)"
+            :page-range="3"
+            :margin-pages="2"
+            :class="'data--paginate'">
+          </paginate>
+          </div>
+          <div v-if="!forms.length">
+            <span class="md-list-item-text message">None</span>
+          </div>
 
-          <md-divider></md-divider><br /><br />
+          </md-tab>
+          <md-tab md-label="JSON" ref="json-tab" id="json">
 
           <!-- Provide a way to extract the json so you can save it to a file -->
           <md-table>
-            <md-table-toolbar>
-              <h2 class="md-title" id="documents">Raw JSON</h2>
-            </md-table-toolbar>
+            <div id="rawHTML">
+              {{ updateJSON() }}
+            </div>
             <md-field>
-              <md-textarea id="raw" v-model="rawJSON" :readonly="true"></md-textarea>
+              <md-button @click="copyJsonToClipboard" class="md-primary">
+                Copy to clipboard
+              </md-button>
             </md-field>
           </md-table>
+
+          </md-tab>
+          </md-tabs>
+
         </div>
 
         <div v-if="!indexLoaded">
-          <h2 class="md-title">Authenticate
-          <img src='doghouse.jpg' width="80" alt="" role="presentation"/></h2>
-          <p>To use this site you will require a valid login code.</p>
-          <p>Enter the login code here</p>
-          <div layout="row" layout-align="center center">
-            <input class="md-field" v-model="authKey" type="text" name="authKey" size="12">
-            <md-button @click="authenticate" class="md-primary">
-              Login
-            </md-button>
+          <h2 class="md-title">Website Crawler</h2>
+          <div class="md-layout md-gutter">
+            <div v-if="!newClientResponse">
+              <div class="md-layout-item">
+                <div class="md-card">
+                  <div class="md-card-header">
+                    <h3>New clients</h3>
+                  </div>
+                  <div class="md-card-content">
+                    <p>Interested in a using this App? Contact us and we will create you a new login.</p>
+                    <form id="new-client" @submit.prevent="newClient">
+                      <input class="md-field" v-model="firstName" type="text" required
+                          name="firstName" placeholder="First name" size="12">
+                      <input class="md-field" v-model="lastName" type="text" required
+                          name="lastName" placeholder="Last name" size="12">
+                      <input class="md-field" v-model="company" type="text" required
+                          name="company" placeholder="Company" size="16">
+                      <input class="md-field" v-model="email" type="email" required
+                          name="email" placeholder="Email address" size="24">
+                      <input class="md-field" v-model="phone" type="tel" required
+                          name="phone" placeholder="Contact phone number" size="24">
+                      <md-button id="newClient" type="submit" class="md-primary">
+                        Contact Us
+                      </md-button>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div v-if="newClientResponse">
+              <div class="md-layout-item">
+                <div class="md-card">
+                  <div class="md-card-header">
+                    <h3>Thankyou for contacting us.</h3>
+                  </div>
+                  <div class="md-card-content">
+                    <p>You will receive an email with the login details.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="md-layout-item">
+              <div class="md-card">
+                <div class="md-card-header">
+                  <h3>Existing clients</h3>
+                </div>
+                <div class="md-card-content">
+                  <p>Enter the login code here</p>
+                  <input class="md-field" v-model="authKey" type="text" name="authKey" size="12">
+                  <md-button @click="login" class="md-primary">
+                    Login
+                  </md-button>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
         <div v-else>
-          <div v-if="!siteLoaded">
+          <div v-if="!siteLoaded && !clientLoaded">
             <div v-if="!crawling">
-            <h2 class="md-title">How to crawl a site</h2>
+            <h2 class="md-title">Crawl a website</h2>
             <form id="crawl-settings" onsubmit="document.getElementById('crawl').click(); return false;">
               <p>
                 Enter the address of a site to crawl and press "Crawl" to add it to the list.
@@ -242,6 +382,23 @@
                 <label> Delay between fetching pages (seconds) </label>
                 <md-input v-model="delay" type="number"></md-input>
               </md-field>
+              <md-field>
+                <label> Search Pattern </label>
+                <md-input v-model="searchString"></md-input>
+              </md-field>
+              <md-field>
+                <label> Replacement </label>
+                <md-input v-model="replaceString"></md-input>
+              </md-field>
+              <md-field>
+                <label> Redirect Script </label>
+                <md-input v-model="redirectScript"></md-input>
+              </md-field>
+              <md-field>
+                <label> Script extensions </label>
+                <md-input v-model="scriptExtensions"></md-input>
+              </md-field>
+              <md-checkbox v-model="runScripts"> Run scripts </md-checkbox>
               <md-checkbox v-model="downloadImages"> Download images </md-checkbox>
               <md-checkbox v-model="robots"> Respect "robots.txt" policy file. </md-checkbox>
               <md-checkbox v-model="removeEmptyNodes"> Remove empty tags </md-checkbox>
@@ -255,7 +412,7 @@
               </label>
               <md-textarea v-model="contentMapping" placeholder="
 
-                  http://url/*/specific | product | article
+                  http://url/*/specific | custom-content-type | css-search-string
                   http://url | other "></md-textarea>
             </md-field>
             <md-field>
@@ -266,9 +423,11 @@
             </md-field>
 
 
-              <p>
-              <md-button id="crawl" @click="beginCrawl" class="md-primary md-raised md-button">Crawl</md-button>
-              </p>
+              <div v-if="(Object.keys(this.storage).length < this.localMax) || this.indexMaster">
+                <p>
+                  <md-button id="crawl" @click="beginCrawl" class="md-primary md-raised md-button">Crawl</md-button>
+                </p>
+              </div>
             </form>
             </div>
             <div v-if="crawling">
@@ -278,6 +437,35 @@
             </md-content>
             </div>
             <div class="log--crawler"> </div>
+          </div>
+        </div>
+        <div v-if="clientLoaded">
+          <h2 class="md-title">Client overview</h2>
+          <md-table>
+            <md-table-row>
+              <md-table-cell md-label="Client">{{ client.company + ': ' + client.firstName + ' ' + client.lastName }}</md-table-cell>
+              <md-table-cell md-label="Phone">{{ client.phone }}</md-table-cell>
+              <md-table-cell md-label="Email">{{ client.email }}</md-table-cell>
+              <md-table-cell md-label="Login">{{ client.key }}</md-table-cell>
+            </md-table-row>
+          </md-table>
+          <h3 class="md-subtitle">Sites</h3>
+          <md-list>
+            <md-list-item>
+              <h4 class="md-subhead">Shared</h4>
+            </md-list-item>
+            <md-list-item v-for="nav in index" @click="getSite(nav.file)" :key="nav.file">
+              <md-icon>bookmark_border</md-icon>
+              <span class="md-list-item-text"><a href='#'>{{ nav.title }}</a></span>
+            </md-list-item>
+          </md-list>
+          <md-field>
+            <label>Notes</label>
+            <md-textarea cols="80" v-model="client.notes"></md-textarea>
+          </md-field>
+          <md-button class="md-icon-button" @click="saveClientNotes"><md-icon>save</md-icon></md-button>
+          <div v-if="clientNotesSaved">
+            <md-content class="md-subhead">Notes saved</md-content>
           </div>
         </div>
 
@@ -291,10 +479,12 @@
 <script src="bundle.js"></script>
 <script src="https://unpkg.com/vue"></script>
 <script src="https://unpkg.com/vue-material@beta"></script>
+<script src="https://unpkg.com/vuejs-paginate@latest"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.18.0/axios.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.11/lodash.min.js"></script>
 <script>
   Vue.use(VueMaterial.default);
+  Vue.component('paginate', VuejsPaginate);
 
   new Vue({
     el: '#app',
@@ -303,6 +493,7 @@
       jsonDir: '/sites/',
       indexLoaded: false,
       siteLoaded: false,
+      clientLoaded: false,
       isServer: false,
       results: {},
       pages: [],
@@ -314,31 +505,122 @@
       url: '',
       proxy: 'https://cors-anywhere.herokuapp.com/',
       downloadImages: false,
+      runScripts: false,
       urlFilter: '',
       excludeFilter: '',
       delay: 5,
+      searchString: '',
+      replaceString: '',
+      redirectScript: '',
+      scriptExtensions: '',
       robots: true,
       crawling: false,
       indexMaster: false,
       removeEmptyNodes: true,
       removeAttributes: true,
       trimWhitespace: true,
-      simplifyStructure: true,
+      simplifyStructure: false,
       removeDuplicates: true,
       authKey: '',
       rawJSON: '',
       contentMapping: '',
       removeElements: 'nav, aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object',
       domainToLoad: '',
+      perPage: 10,
+      pagesCurrentPage: 0,
+      imagesCurrentPage: 0,
+      documentsCurrentPage: 0,
+      formsCurrentPage: 0,
+      activeTab: 'overview',
+      firstName: '',
+      lastName: '',
+      company: '',
+      email: '',
+      phone: '',
+      client: {},
+      clientNotesSaved: false,
+      newClientResponse: '',
+
+      countSites: 0,
+      localMax: 3
+    },
+    computed: {
+      paginatedPages: function() {
+        let start = (this.pagesCurrentPage * this.perPage);
+        if (start > this.pages.length) {
+          this.pagesCurrentPage = 0;
+        }
+        return this.pages.slice(
+          this.pagesCurrentPage * this.perPage,
+          (this.pagesCurrentPage + 1) * this.perPage
+        );
+      },
+      paginatedImages: function() {
+        let start = (this.imagesCurrentPage * this.perPage);
+        if (start > this.images.length) {
+          this.imagesCurrentPage = 0;
+        }
+        return this.images.slice(
+          this.imagesCurrentPage * this.perPage,
+          (this.imagesCurrentPage + 1) * this.perPage
+        );
+      },
+      paginatedForms: function() {
+        let start = (this.formsCurrentPage * this.perPage);
+        if (start > this.forms.length) {
+          this.formsCurrentPage = 0;
+        }
+        return this.forms.slice(
+          this.formsCurrentPage * this.perPage,
+          (this.formsCurrentPage + 1) * this.perPage
+        );
+      },
+      paginatedDocuments: function() {
+        let start = (this.documentsCurrentPage * this.perPage);
+        if (start > this.documents.length) {
+          this.documentsCurrentPage = 0;
+        }
+        return this.documents.slice(
+          this.documentsCurrentPage * this.perPage,
+          (this.documentsCurrentPage + 1) * this.perPage
+        );
+      },
     },
     methods: {
+      setPagesCurrentPage: function(page) {
+        this.pagesCurrentPage = page - 1;
+      },
+      setImagesCurrentPage: function(page) {
+        this.imagesCurrentPage = page - 1;
+      },
+      setFormsCurrentPage: function(page) {
+        this.formsCurrentPage = page - 1;
+      },
+      setDocumentsCurrentPage: function(page) {
+        this.documentsCurrentPage = page - 1;
+      },
       getOverview: function() {
         this.overview = [
           { title: 'Pages', count: this.results.pages.length, id: 'pages' },
           { title: 'Images', count: this.results.images.length, id: 'images' },
           { title: 'Documents', count: this.results.documents.length, id: 'documents' },
           { title: 'Forms', count: this.results.forms.length, id: 'forms' },
-        ]
+        ];
+      },
+      updateJSON: function() {
+        setTimeout(function() {
+          // Attach the JSON to the page.
+          let raw = document.getElementById('rawHTML');
+          if (raw) {
+            while (raw.firstChild) {
+              raw.removeChild(raw.firstChild);
+            }
+            raw.appendChild(this.rawHTML);
+          }
+
+        }.bind(this), 500);
+
+        return '';
       },
       removeClient: function(key) {
         if (!this.indexMaster) {
@@ -361,8 +643,15 @@
           return [];
         }
 
+        let baseKey = prompt("Please enter the client ID", "client");
+
+        if (!baseKey) {
+          return [];
+        }
+
+        // Append a random string to the base key.
         let params = new URLSearchParams(),
-            key = Math.random().toString(36).substring(2, 8);
+            key = baseKey + '-' + Math.random().toString(36).substring(2, 8);
 
         params.append('action', 'add_client');
         params.append('key', key);
@@ -396,6 +685,29 @@
         params.append('domain', this.results.domain);
         params.append('title', this.results.domain);
         params.append('json', this.rawJSON);
+        this.siteCount += 1;
+
+        let settings = {
+          startUrl: this.url,
+          downloadImages: this.downloadImages,
+          runScripts: this.runScripts,
+          urlFilter: this.urlFilter,
+          excludeFilter: this.excludeFilter,
+          proxy: this.proxy,
+          delay: this.delay,
+          searchString: this.searchString,
+          replaceString: this.replaceString,
+          redirectScript: this.redirectScript,
+          scriptExtensions: this.scriptExtensions,
+          robots: this.robots,
+          simplifyStructure: this.simplifyStructure,
+          removeDuplicates: this.removeDuplicates,
+          contentMapping: this.contentMapping,
+          removeElements: this.removeElements,
+          removeAttributes: this.removeAttributes,
+          removeEmptyNodes: this.removeEmptyNodes,
+        };
+        params.append('settings', JSON.stringify(settings));
 
         axios.post('persist.php', params).then(() => {
           let site = this.results.domain;
@@ -415,16 +727,57 @@
         });
 
       },
+      loadClient(authKey) {
+        let timestamp = (new Date()).getTime();
+        return axios.get(this.jsonDir + authKey + '-info.json?' + timestamp, {});
+      },
+      login() {
+        this.authenticate().then(() => {
+          this.loadClient(this.authKey)
+            .then((response) => {
+               this.firstName = response.data.firstName;
+               this.notes = response.data.notes;
+               this.lastName = response.data.lastName;
+               this.company = response.data.company;
+               this.phone = response.data.phone;
+               this.email = response.data.email;
+            }).catch((ex) => {
+              let message = 'Not specified';
+              this.notes = '';
+              this.firstName = message;
+              this.lastName = message;
+              this.company = message;
+              this.phone = message;
+              this.email = message;
+            });
+        });
+      },
+      newClient() {
+        // Append a random string to the base key.
+        let params = new URLSearchParams();
+
+        params.append('action', 'new_client');
+        params.append('firstName', this.firstName);
+        params.append('lastName', this.lastName);
+        params.append('company', this.company);
+        params.append('email', this.email);
+        params.append('phone', this.phone);
+
+        axios.post('persist.php', params).then(() => {
+          this.newClientResponse = true;
+        });
+        return false;
+      },
       authenticate() {
         if (!this.authKey) {
           return;
         }
 
         // Santize the key before we fetch it.
-        this.authKey = this.authKey.replace(/[^A-Za-z0-9]/g, "");
+        this.authKey = this.authKey.replace(/[^A-Za-z0-9\-]/g, "");
         let timestamp = (new Date()).getTime();
 
-        axios.get(this.jsonDir + this.authKey + '-index.json?' + timestamp, {})
+        return axios.get(this.jsonDir + this.authKey + '-index.json?' + timestamp, {})
           .then((data) => {
             this.indexLoaded = true;
             this.index = _.toArray(data.data);
@@ -456,8 +809,11 @@
             .then((data) => {
               this.indexMaster = true;
               this.listClients();
+            }).catch((ex) => {
+              this.indexMaster = false;
+              // Not an error.
             });
-          }).catch((boo) => {
+          }).catch((ex) => {
             this.indexLoaded = false;
             this.index = [];
             alert('The login code was not correct. Please check it and try again.');
@@ -468,6 +824,9 @@
         this.menuVisible = !this.menuVisible
       },
       beginCrawl() {
+        if (this.storage && Object.keys(this.storage).length >= this.localMax && !this.indexMaster) {
+          return false;
+        }
         this.crawling = true;
 
         if (this.url.substring(0, 4) != 'http') {
@@ -475,13 +834,21 @@
         }
 
         window.crawl(this.url,
-            this.downloadImages,
+            this.authKey,
+            this.proxy,
             this.urlFilter,
             this.excludeFilter,
-            this.proxy,
             this.delay,
+            this.searchString,
+            this.replaceString,
+            this.redirectScript,
+            this.scriptExtensions,
+            this.runScripts,
+            this.downloadImages,
             this.robots,
-            this.authKey,
+            this.removeEmptyNodes,
+            this.removeAttributes,
+            this.trimWhitespace,
             this.simplifyStructure,
             this.removeDuplicates,
             this.contentMapping,
@@ -494,15 +861,64 @@
         this.domainToLoad = url.hostname + '.json';
         this.authenticate();
       },
+      getClient(key) {
+        this.loadClient(key).then((response) => {
+          this.client.firstName = response.data.firstName;
+          this.client.lastName = response.data.lastName;
+          this.client.company = response.data.company;
+          this.client.phone = response.data.phone;
+          this.client.email = response.data.email;
+          this.client.key = response.data.key;
+          this.client.notes = response.data.notes;
+          this.clientNotesSaved = false;
+          this.clientLoaded = true;
+          this.siteLoaded = false;
+
+          let timestamp = (new Date()).getTime();
+
+          return axios.get(this.jsonDir + key + '-index.json?' + timestamp, {})
+            .then((data) => {
+              this.indexLoaded = true;
+              this.index = _.toArray(data.data);
+              this.menuVisible = true;
+            });
+
+        }).catch((ex) => {
+          // No info file for this client.
+          let message = 'Not specified';
+          this.client.firstName = message;
+          this.client.lastName = message;
+          this.client.company = message;
+          this.client.phone = message;
+          this.client.email = message;
+          this.client.key = key;
+          this.clientNotesSaved = false;
+          this.clientLoaded = true;
+          this.siteLoaded = false;
+
+          let timestamp = (new Date()).getTime();
+
+          return axios.get(this.jsonDir + key + '-index.json?' + timestamp, {})
+            .then((data) => {
+              this.indexLoaded = true;
+              this.index = _.toArray(data.data);
+              this.menuVisible = true;
+            });
+        });
+
+      },
       getSite(file) {
         axios.get(this.jsonDir + file, {})
           .then((data) => {
             this.results = data.data;
             this.rawJSON = '';
+            this.rawHTML = null;
 
             try {
               this.rawJSON = JSON.stringify(this.results);
-            } catch (ex) {}
+              this.rawHTML = jsonToHtml(this.results);
+
+            } catch (ex) { }
 
             this.pages = this.results.pages;
             this.images = this.results.images;
@@ -510,8 +926,50 @@
             this.forms = this.results.forms;
             this.getOverview();
             this.siteLoaded = true;
+            this.clientLoaded = false;
             this.isServer = true;
+
+            this.resolveImages();
+            this.selectDefaultTab();
+
+            axios.get(this.jsonDir + 'settings-' + file, {})
+              .then((data) => {
+                let settings = data.data;
+                this.url = settings.startUrl;
+                this.downloadImages = settings.downloadImages;
+                this.runScripts = settings.runScripts;
+                this.urlFilter = settings.urlFilter;
+                this.excludeFilter = settings.excludeFilter;
+                this.proxy = settings.proxy;
+                this.delay = settings.delay;
+                this.searchString = settings.searchString;
+                this.replaceString = settings.replaceString;
+                this.redirectScript = settings.redirectScript;
+                this.scriptExtensions = settings.scriptExtensions;
+                this.robots = settings.robots;
+                this.simplifyStructure = settings.simplifyStructure;
+                this.removeDuplicates = settings.removeDuplicates;
+                this.contentMapping = settings.contentMapping;
+                this.removeElements = settings.removeElements;
+              });
           })
+      },
+      tabChanged: function(id) {
+        this.activeTab = id;
+      },
+      selectDefaultTab() {
+        setTimeout(function() {
+          this.activeTab = 'overview';
+          // We want to trigger a change, so the pages are updated.
+          this.pagesCurrentPage = 10;
+          this.imagesCurrentPage = 10;
+          this.documentsCurrentPage = 10;
+          this.formsCurrentPage = 10;
+          this.pagesCurrentPage = 0;
+          this.imagesCurrentPage = 0;
+          this.documentsCurrentPage = 0;
+          this.formsCurrentPage = 0;
+        }.bind(this), 200);
       },
       getStorage(key) {
         let request = window.indexedDB.open('crawler');
@@ -530,15 +988,56 @@
 
             this.results = site;
             this.rawJSON = JSON.stringify(this.results);
+            this.rawHTML = jsonToHtml(this.results);
             this.pages = site.pages;
             this.images = site.images;
             this.documents = site.documents;
             this.forms = site.forms;
             this.getOverview();
             this.siteLoaded = true;
+            this.clientLoaded = false;
             this.isServer = false;
+            this.resolveImages();
+            this.selectDefaultTab();
+
+            let settingsRequest = st.get(this.jsonDir + 'settings-' + key);
+            settingsRequest.onsuccess = function() {
+              let settings = settingsRequest.result;
+
+              this.url = settings.startUrl.href;
+              this.downloadImages = settings.downloadImages;
+              this.runScripts = settings.runScripts;
+              this.urlFilter = settings.urlFilter;
+              this.excludeFilter = settings.excludeFilter;
+              this.proxy = settings.proxy;
+              this.delay = settings.delay;
+              this.searchString = settings.searchString;
+              this.replaceString = settings.replaceString;
+              this.redirectScript = settings.redirectScript;
+              this.scriptExtensions = settings.scriptExtensions;
+              this.robots = settings.robots;
+              this.simplifyStructure = settings.simplifyStructure;
+              this.removeDuplicates = settings.removeDuplicates;
+              this.contentMapping = settings.contentMapping;
+              this.removeElements = settings.removeElements;
+            }.bind(this);
           }.bind(this);
         }.bind(this);
+      },
+      resolveImages() {
+        let index, img, loaded = 0;
+
+        for (index in this.images) {
+          img = this.images[index];
+
+          // We would DOS the proxy if we load too many images at once.
+          if (img.data.substring(0, 5) == 'data:') {
+            img.proxyUrl = img.data;
+          } else {
+            loaded++;
+            img.proxyUrl = this.proxy + img.data;
+          }
+        }
       },
       removeStorage(key) {
         let request = window.indexedDB.open('crawler');
@@ -561,9 +1060,41 @@
           }.bind(this);
         }.bind(this);
       },
+      saveClientNotes: function() {
+        if (!this.indexMaster) {
+          return;
+        }
+        let params = new URLSearchParams();
+
+        params.append('action', 'save_notes');
+        params.append('notes', this.client.notes);
+        params.append('clientKey', this.client.key);
+        params.append('authKey', this.authKey);
+
+        axios.post('persist.php', params).then(() => {
+          this.clientNotesSaved = true;
+        });
+      },
+      copyJsonToClipboard: function() {
+        var source = document.createElement("textarea");
+        document.body.appendChild(source);
+        source.value = JSON.stringify(JSON.parse(this.rawJSON), null, 2);
+        source.select();
+        document.execCommand("copy");
+        document.body.removeChild(source);
+      },
+      copyContentToClipboard: function(content) {
+        var source = document.createElement("textarea");
+        document.body.appendChild(source);
+        source.value = content;
+        source.select();
+        document.execCommand("copy");
+        document.body.removeChild(source);
+      },
       homePage() {
         this.results.domain = '';
         this.siteLoaded = false;
+        this.clientLoaded = false;
       },
     }
   });

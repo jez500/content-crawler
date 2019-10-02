@@ -5,7 +5,9 @@ const Duplicates = require('./duplicates');
 const Url = require('url-parse');
 const _ = require('lodash');
 const $ = require('cheerio');
+const jsdom = require('jsdom');
 const CrawlerSettings = require('./crawler-settings');
+const Score = require('./score');
 
 const Crawler = class {
 
@@ -56,32 +58,247 @@ const Crawler = class {
     this.completeHandler = this.log;
   }
 
+  scorePages() {
+    let i = 0,
+        page = {},
+        instance = new Score(),
+        result = {};
+
+    for (i in this.db.pages) {
+      page = this.db.pages[i];
+      result = instance.scoreContent(page.body);
+      page.score = result.score;
+
+      if (this.settings.removeEmptyNodes) {
+        page.body = result.content;
+      }
+    }
+  }
+
+  /**
+   * Turn this: "/cheese/burger" into this: "Cheese Burger".
+   */
+  sanitiseTitle(path) {
+    let all = [], i, clean = [];
+
+    path = path.replace(/_/g, ' ');
+    path = path.replace(/\//g, ' ');
+    all = path.split(' ');
+
+    for (i = 0; i < all.length; i++) {
+      all[i] = all[i].charAt(0).toUpperCase() + all[i].substring(1);
+    }
+
+    return all.join(' ').trim();
+  }
+
   /**
    * Urls have finished loading, post process the content.
    */
   crawlComplete() {
     // We are not downloading images, just add it.
-    let links = this.settings.getImageLinks(), url = '';
+    let links = this.settings.getImageLinks(),
+      url = '',
+      link = null,
+      i = 0,
+      page = null,
+      pattern = null,
+      valid = true,
+      pages = [];
 
     for (url in links) {
-      this.db.images[url] = links[url];
+      if (strlen($url) <= 128) {
+        this.db.images[url] = links[url];
+      } else {
+        this.db.imagesSkipped[url] = links[url];
+      }
+    }
+    links = this.settings.getDocumentLinks();
+
+    for (url in links) {
+      link = links[url];
+      // Link it to the page.
+      for (i in this.db.pages) {
+        if (this.db.pages[i].url.replace(/#.*/, '') == link.contextUrl) {
+          this.db.pages[i].documents[link.url] = { url: link.url, id: link.url };
+          break;
+        }
+      }
+
+      // Remove the context url and add it to the global list.
+      this.db.documents[url] = { url: link.url, id: link.url };
     }
 
     // Turn assets into arrays.
     this.db.images = _.values(this.db.images);
-    this.db.documents = _.keys(this.db.documents);
-    this.db.forms = _.keys(this.db.forms);
+    this.db.imagesSkipped = _.values(this.db.imagesSkipped);
+    this.db.documents = _.values(this.db.documents);
+    this.db.forms = _.values(this.db.forms);
+    for (i in this.db.pages) {
+      this.db.pages[i].documents = _.values(this.db.pages[i].documents);
+    }
     // Save db to JSON.
     if (this.db.pages.length > 0) {
-      let duplicates = new Duplicates();
+      let duplicates = new Duplicates(),
+        genericTitle = '',
+        genericUrl = '';
 
       if (this.settings.removeDuplicates) {
         duplicates.removeDuplicates(this.db.pages);
+        duplicates.removeDuplicateTitles(this.db.pages);
       }
-      duplicates.removeDuplicateTitles(this.db.pages);
+
+      // OK - final cleaning things.
+      // 1. Global string replacements on URLs and body text.
+      for (i in this.db.pages) {
+        page = this.db.pages[i];
+        valid = true;
+        if (!genericTitle) {
+          genericTitle = this.db.pages[i].title;
+          genericUrl = this.db.pages[i].url;
+        }
+
+        pattern = new RegExp(this.settings.searchString, 'g');
+        page.body = page.body.replace(pattern, this.settings.replaceString);
+        page.url = page.url.replace(pattern, this.settings.replaceString);
+
+        // 2. Clean the URL parameters
+        // Trailing slashes removed.
+        page.url = page.url.replace(/\/$/g, '');
+
+        // Query string removed.
+        page.url = page.url.replace(/\?.*$/g, '');
+
+        // Multiple slashes that is not a URL removed.
+        page.url = page.url.replace(/([^:])\/\//, '$1/');
+
+        // 4. Clean nasty redirect scripts from URLs and body text.
+        if (this.settings.redirectScript) {
+          pattern = new RegExp(this.settings.redirectScript, 'g');
+          if (pattern.test(page.url)) {
+            // Nuke it.
+            valid = false;
+          }
+          // Replace redirect links in the body.
+          page.body = page.body.replace(pattern, function(match, p1) {
+            return decodeURIComponent(p1);
+          });
+        }
+
+        // 5. Kill pages from a 404.
+        if (page.title.toLowerCase().includes('page not found') ||
+            page.title.toLowerCase().includes('page missing')) {
+          valid = false;
+          this.log('Page not found: ' + page.url);
+        }
+        // 6. Kill bogus file extensions from webpages and urls.
+        let all = this.settings.scriptExtensions.split(','),
+          extIndex;
+
+        for (extIndex in all) {
+          if (all[extIndex]) {
+            page.url = page.url.replace(new RegExp('.' + all[extIndex], 'g'), '');
+            page.body = page.body.replace(new RegExp('.' + all[extIndex], 'g'), '');
+          }
+        }
+
+        // 3. Generate Aliases
+        // Generate a relative link from the URL.
+        page.alias = this.generateAlias(page.url);
+
+        // 7. Some pages have MULTIPLE h1s (really!?). We will take the last one if it happens.
+
+        pattern = /<h1>([^<]*)<\/h1>/g;
+        let matches = page.body.matchAll(pattern);
+        for (let match of matches) {
+          page.title = match[1];
+        }
+
+        // 8. Kill %20 invalid urls.
+        page.alias = decodeURIComponent(page.alias);
+
+        // 10. Generate Parents for the menu.
+
+        let parentPage = page.alias;
+        // Remove trailing slashes.
+        parentPage = parentPage.replace(/\/$/g, '');
+
+        // Get path sections.
+        parentPage = parentPage.split('/');
+        // Remove the last one.
+        parentPage.pop();
+        // Build a string again.
+        page.parent = parentPage.join('/');
+
+        // 11. For pages with a generic title, make a new one from the alias.
+        if (page.title == genericTitle) {
+          page.title = this.sanitiseTitle(page.alias);
+        }
+
+        // 12. For listing pages, keep the first page content but add a comment.
+        if (pages[page.alias]) {
+          valid = false;
+          pages[page.alias].body += '<!-- Listing page -->';
+        }
+
+        // 13. Decode entities in titles.
+        page.title = decodeURIComponent(page.title);
+
+        // All pages must have a title.
+        if (page.title.trim() == '') {
+          valid = false;
+        }
+
+        if (valid) {
+          // No duplicate aliases.
+          pages[page.alias] = page;
+        }
+      }
+
+      let doitagain = true;
+      let alias1 = '', alias2 = '', found = false;
+      while (doitagain) {
+        doitagain = false;
+
+        for (alias1 in pages) {
+          found = false;
+          page = pages[alias1];
+
+          for (alias2 in pages) {
+            if (page.parent == pages[alias2].alias) {
+              found = true;
+            }
+          }
+
+          if (!found && page.parent) {
+            let newpage = {};
+            newpage.url = genericUrl + page.parent;
+            newpage.alias = page.parent;
+            newpage.images = [];
+            newpage.documents = [];
+            newpage.forms = [];
+            newpage.body = '';
+            newpage.mediaType = 'text/html';
+            newpage.contentType = 'page';
+            let parentPage = page.parent.split('/');
+            let title = parentPage.pop();
+            newpage.parent = parentPage.join('/');
+            newpage.title = this.sanitiseTitle(title);
+            pages[newpage.alias] = newpage;
+            this.log('Generate parent for page: ' + newpage.alias);
+
+            doitagain = true;
+          }
+        }
+      }
+
+      // 15. Generate blank intermediate pages for the menu that are missing.
+      this.db.pages = _.values(pages);
 
       this.saveDb();
       this.updateIndex();
+
+      this.scorePages();
       this.log('Crawl complete!', this.db.pages.length + ' pages', this.db.images.length + ' images',
       this.db.documents.length + ' documents', this.db.forms.length + ' forms');
     } else {
@@ -122,11 +339,51 @@ const Crawler = class {
 
     // Patch the downloader to allow CORS requests using a proxy.
     instance._proxyUrl = this.settings.proxy;
+    instance._runScripts = this.settings.runScripts;
 
     // We are monkey patching the download function.
     instance._downloadUrlRaw = instance._downloadUrl;
     instance._downloadUrl = function(url, followRedirect) {
-      return this._downloadUrlRaw(this._proxyUrl + url, followRedirect);
+      let raw = this._downloadUrlRaw(this._proxyUrl + url, followRedirect);
+      let pageUrl = url;
+
+      return raw.then(function (param) {
+        if (!this._runScripts) {
+          return param;
+        }
+        // What we are doing here is running the javascript in a virtual DOM
+        // after loading the page. This allows content to be updated by js
+        // before we look at it.
+        let response = param;
+        let buffer = Buffer.from(response.body);
+        let html = buffer.toString();
+        let loader = new jsdom.ResourceLoader();
+        let proxyUrl = this._proxyUrl;
+
+        // Monkey patch again!
+        loader.fetchRaw = loader.fetch;
+        loader.fetch = function(urlString, options = {}) {
+          urlString = proxyUrl + urlString;
+          return this.fetchRaw(urlString, options);
+        }.bind(loader);
+
+        let client = new jsdom.JSDOM(html, {
+          url: pageUrl,
+          referrer: pageUrl,
+          runScripts: "dangerously",
+          resources: loader,
+        });
+
+        return new Promise(function(resolve) {
+          // 5 seconds should be enough for anyone.
+          setTimeout(resolve.bind(this), 5000);
+        }.bind(this)).then(function(client, response) {
+          let q = client.serialize();
+          response.body = Buffer.from(q);
+
+          return response;
+        }.bind(this, client, response));
+      }.bind(this));
     }.bind(instance);
 
     instance.on('crawledurl', (url, errorCode, statusCode) => {
@@ -213,23 +470,37 @@ const Crawler = class {
         node.text(node[0].data.replace(/\s+/g, ' '));
       }
       // Remove attributes from most tags.
+      let attributes = node[0].attribs;
+      let name = '';
+
       if (this.settings.removeAttributes) {
-        let attributes = node[0].attribs;
-        let name = '';
         let common = [
           'href', 'src', 'alt', 'role', 'name', 'value',
           'type', 'title', 'width', 'height', 'rows', 'cols',
-          'size', 'for', 'action', 'method', 'placeholder',
+          'size', 'for', 'method', 'action', 'placeholder',
           'colspan', 'rowspan'
         ];
 
         for (name in attributes) {
           if (!common.includes(name)) {
             node.removeAttr(name);
-          } else if (name == 'href' && node.attr(name)[0] == '#') {
-            // Node is a relative in page link. Remove it.
-            node.remove();
           }
+        }
+      }
+
+      // Change some links to relative.
+      let urlAttributes = ['href', 'src', 'action'];
+      for (name in attributes) {
+        if (urlAttributes.includes(name)) {
+          let domainUrl = new URL(this.settings.startUrl);
+          domainUrl = domainUrl.protocol + '//' + domainUrl.hostname;
+          let relative = node.attr(name);
+          let source = relative;
+          relative = relative.replace(new RegExp(domainUrl, 'gi'), '');
+          if (relative != source) {
+            node.attr('data-js-crawler-url', source);
+          }
+          node.attr(name, relative);
         }
       }
 
@@ -246,7 +517,7 @@ const Crawler = class {
     // Deeply nested divs and span with no meaning to the structure are hard to deal with.
     if (this.settings.simplifyStructure) {
       if ((node[0].tagName == 'div' || node[0].tagName == 'span') &&
-          node.parent().length != 0 && 
+          node.parent().length != 0 &&
           (node.parent()[0].tagName == 'div' || node.parent()[0].tagName == 'span')) {
         let innerHTML = node.html();
         node.replaceWith(innerHTML);
@@ -263,6 +534,11 @@ const Crawler = class {
   textHander(context) {
     // Handler for each page. Add results to db.
     this.log("Processed", context.url);
+    let all = this.crawler.getUrlList(),
+        total = all._list.length,
+        current = all._nextIndex,
+        progress = Math.floor(current * 100 / total);
+    this.log(current + ' complete of ' + total + ' urls ( ' + progress + ' % ).');
 
     let main = context.$('body');
 
@@ -301,16 +577,30 @@ const Crawler = class {
     }
 
     // Perform deep cleaning on the content.
-    let contentType = this.mapContentType(context.url),
+    let contentTypeList = this.mapContentType(context.url),
         contentCount = 0,
+        contentType = null,
         article = '',
-        articles = [];
+        articles = [],
+        contentTypeIndex = 0,
+        matchingType = null;
 
-    if (contentType.search) {
-      articles = main.find(contentType.search);
-    } else {
-      articles = $(main);
+    for (contentTypeIndex = 0; contentTypeIndex < contentTypeList.length; contentTypeIndex++) {
+      contentType = contentTypeList[contentTypeIndex];
+      if (contentType.search) {
+        articles = main.find(contentType.search);
+        if (articles.length) {
+          matchingType = contentType;
+          break;
+        }
+        // The url matched, but there were no matching dom elements.
+      } else {
+        matchingType = contentType;
+        articles = $(main);
+        break;
+      }
     }
+
     articles.each(function(contentCount, article) {
       let mainText = $.html(this.extractContent($(article)));
       let res = {
@@ -319,11 +609,20 @@ const Crawler = class {
         mediaType: context.contentType,
         contentType: contentType.type,
         size: Math.round((Buffer.byteLength(context.body) / 1024)),
-        forms: this.getForms(mainText),
-        images: this.getImages(mainText),
+        forms: this.getForms(mainText, context.url),
+        images: this.getImages(mainText, context.url),
         body: mainText,
         search: '',
+        score: 0,
+        documents: {},
       };
+      let heading = $('h1', mainText).first().text();
+      if (heading) {
+        res.title = heading;
+      }
+      if (!res.title) {
+        res.title = res.url;
+      }
       if (contentType.search) {
         res.search = contentType.search;
         res.url += '#' + contentCount;
@@ -331,12 +630,13 @@ const Crawler = class {
         let title = $('h1, h2, h3, h4', mainText).first().text();
         if (title) {
           title = title.trim();
-          this.log(title);
           res.title = title;
         } else {
           res.title += ' (' + contentType.type + ', ' + contentCount + ')';
         }
       }
+      // Turn images into array.
+      res.images = _.values(res.images);
 
       // The result of the page cleaning is pushed to the db pages array.
       this.log('Content: ' + contentType.type + ' url: ' + res.url + ' search: ' + contentType.search);
@@ -350,8 +650,8 @@ const Crawler = class {
    *
    * The default type is page.
    * @param {string} url
-   * @return {object}
-   *  - An object containing 'search' and 'contentType'
+   * @return [{object}]
+   *  - A list of objects containing 'search' and 'contentType'
    */
   mapContentType(url) {
     let maps = this.settings.contentMapping.split(/\r?\n/),
@@ -359,7 +659,8 @@ const Crawler = class {
         map,
         line,
         search = '',
-        type;
+        type,
+        valid = [];
 
     for (index in maps) {
       line = maps[index].split('|');
@@ -372,14 +673,17 @@ const Crawler = class {
           if (line.length > 2) {
             search = line[2].trim();
           }
-          return {
+          // Dont return, we want a list of all possible matches.
+          valid.push({
             search: search,
             type: type
-          };
+          });
         }
       }
     }
-    return { search: '', type: 'page' };
+    // Fallback - always included it last.
+    valid.push({ search: '', type: 'page' });
+    return valid;
   }
 
   /**
@@ -395,14 +699,12 @@ const Crawler = class {
    * to the list of urls to fetch.
    *
    * @param {Object} context
+   * @param {String} pageUrl
    * @return {Array}
    *   - An array with the urls as keys and metadata as values.
    */
-  getImages(context) {
+  getImages(context, pageUrl) {
     let images = {}, count = 0, dataUrl = 0;
-
-   // let buffer = Buffer.from(context.body);
-    //buffer = buffer.toString();
 
     $('img', context).each((i, d) => {
       let imgUrl = $(d).attr('src');
@@ -415,26 +717,19 @@ const Crawler = class {
 
       // Data urls don't need to be downloaded, just save them now.
       if (imgUrl.slice(0, 5) === 'data:') {
-        dataUrl = context.url + '#data' + (count++);
+        dataUrl = pageUrl + '#data' + (count++);
         // data:
         this.db.images[dataUrl] = {
           data: imgUrl.slice(5),
-          url: dataUrl
+          url: dataUrl,
+          id: dataUrl
         };
+        images[dataUrl] = this.db.images[dataUrl];
         this.log('Image data shortcut:', this.db.images[dataUrl]);
       }
       else {
         // Relative urls need to be made full.
-        if (imgUrl.slice(0, 4) != 'http') {
-          if (imgUrl[1] == '/') {
-            imgUrl = 'http:' + imgUrl;
-          } else {
-            if (imgUrl[0] == '/') {
-              imgUrl = imgUrl.slice(1);
-            }
-            imgUrl = this.settings.startUrl + imgUrl;
-          }
-        }
+        imgUrl = (new URL(imgUrl, pageUrl)).href;
 
         // Query strings for images are likely duplicates.
         imgUrl.substring(imgUrl.indexOf("?") + 1);
@@ -442,19 +737,14 @@ const Crawler = class {
         // Apply same url filtering to images.
         let allow = this.settings.filterUrl(imgUrl, null);
 
-        if (allow) {
-          if (this.settings.downloadImages) {
-            // Queue it.
-            this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
-            images[imgUrl] = { url: imgUrl };
-          } else {
-            // We are not downloading images, just add it.
-            this.db.images[imgUrl] = {
-              data: imgUrl,
-              url: imgUrl
-            };
-          }
+        if (this.settings.downloadImages) {
+          // Queue it.
+          this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
+        } else {
+          let proxyDownload = this.settings.proxy + imgUrl;
+          this.db.images[imgUrl] = { url: imgUrl, id: imgUrl, proxyUrl: proxyDownload, data: imgUrl};
         }
+        images[imgUrl] = { url: imgUrl, id: imgUrl };
       }
     });
     return images;
@@ -465,14 +755,23 @@ const Crawler = class {
    * @param {Object} context
    * @return {Array}
    */
-  getForms(context) {
-    let forms = [];
-    $('form', context).each((i ,d) => {
-      let formKey = $.html(d);
-      this.db.forms[ formKey ] = 'form';
-      forms.push($(d).attr('action') + ' - Key: ' + formKey);
+  getForms(context, pageUrl) {
+    let forms = {};
+    $('form', context).each((count, d) => {
+      let actionUrl = (new URL($(d).attr('action'), pageUrl)).href,
+        id = $(d).attr('id');
+
+      actionUrl = actionUrl.replace(/#.*$/, '');
+
+      let form = {
+        action: actionUrl,
+        form: $.html(d),
+      };
+      // Identify forms by the action Url and prevent duplicates.
+      this.db.forms[actionUrl] = form;
+      forms[actionUrl] = form;
     });
-    return forms;
+    return _.values(forms);
   }
 
   /**
@@ -489,7 +788,14 @@ const Crawler = class {
     this.prepareSaveDir();
     let fileName = this.settings.saveDir + '/' + this.settings.domain + '.json';
     this.storage.writeJson(fileName, this.db)
-      .then(() => { this.log('Database updated'); })
+      .then(() => {
+        this.log('Database updated');
+      })
+      .catch(err => { this.log(err); });
+
+    fileName = this.settings.saveDir + '/settings-' + this.settings.domain + '.json';
+    this.storage.writeJson(fileName, this.settings)
+      .then(() => { this.log('Settings updated'); })
       .catch(err => { this.log(err); });
   }
 
@@ -526,6 +832,18 @@ const Crawler = class {
    */
   isWeb() {
     return (typeof window != 'undefined');
+  }
+
+  /**
+   * Generate an alias url.
+   *
+   * @param string url
+   * @return string
+   */
+  generateAlias(url) {
+    let fullUrl = new URL(url);
+
+    return fullUrl.pathname;
   }
 
   /**

@@ -13,7 +13,7 @@ describe('Crawler', function() {
     expect(instance).to.be.a(Crawler);
   });
 
-  it('extractContent should remove clean the content', function() {
+  it('extractContent should clean the content', function() {
     let settings = {
       saveDir: 'test',
       authKey: 'test',
@@ -29,7 +29,7 @@ describe('Crawler', function() {
       '<div role="main">' +
       '<div><span>Stuff to keep.</span></div>' +
       '<article></article>' +
-      '<a href="#goodbye">Link to remove</a>' +
+      '<a href="#goodbye">Link to keep</a>' +
       '<span remove-attribute="remove attribute"><img src="http://localhost/img" title="Image is ok" other="remove me"></span>' +
       'More stuff to keep.' +
       '</div>' +
@@ -44,6 +44,8 @@ describe('Crawler', function() {
     expect(content).to.contain('Stuff to keep');
     expect(content).to.contain('More stuff to keep');
     expect(content).to.contain('Image is ok');
+    // Links are made relative from the shortened startUrl.
+    expect(content).to.contain('src="/img"');
   });
 
   it('images should be extracted from content', function() {
@@ -87,10 +89,10 @@ describe('Crawler', function() {
     };
     let instance = new Crawler('http://localhost/', settings);
 
-    expect(instance.mapContentType('http://other.com/').type).to.be('other');
-    expect(instance.mapContentType('http://example.com/2/something').type).to.be('other2');
-    expect(instance.mapContentType('http://another.com/').type).to.be('page');
-    expect(instance.mapContentType('http://example.com/').type).to.be('example');
-    expect(instance.mapContentType('http://example.com/').search).to.be('article');
+    expect(instance.mapContentType('http://other.com/')[0].type).to.be('other');
+    expect(instance.mapContentType('http://example.com/2/something')[0].type).to.be('other2');
+    expect(instance.mapContentType('http://another.com/')[0].type).to.be('page');
+    expect(instance.mapContentType('http://example.com/')[0].type).to.be('example');
+    expect(instance.mapContentType('http://example.com/')[0].search).to.be('article');
   });
 });

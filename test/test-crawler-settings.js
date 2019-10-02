@@ -31,6 +31,7 @@ describe('CrawlerSettings', function() {
       authKey: 'test',
       urlFilter: 'http://example.org/',
       excludeFilter: 'no-thanks,another',
+      downloadImages: true,
     };
     let instance = new CrawlerSettings('http://localhost/', settings);
 
@@ -39,6 +40,8 @@ describe('CrawlerSettings', function() {
     expect(instance.filterUrl('http://example.org/no-thanks/more')).not.to.be.ok();
     expect(instance.filterUrl('http://example.edu/no-thanks/more')).not.to.be.ok();
     expect(instance.filterUrl('http://another.com/')).not.to.be.ok();
+    expect(instance.filterUrl('/image.png')).not.to.be.ok();
+    expect(instance.filterUrl('/image.png', 'http://example.org')).to.be.ok();
   });
 
 

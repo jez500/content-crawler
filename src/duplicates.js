@@ -111,11 +111,19 @@ const Duplicates = class {
    * @return string
    */
   findSuffix(strings) {
-    if(!strings.length) {
+    if (!strings.length) {
       return ''; // or null or undefined; your choice
     }
 
-    var sorted = strings.slice(0).sort(), // copy the array before sorting!
+    let comparison = function(a, b) {
+      a = a.split('').reverse().join('');
+      b = b.split('').reverse().join('');
+
+      return a.localeCompare(b);
+    };
+
+    // copy the array before sorting!
+    let sorted = strings.slice(0).sort(comparison),
         string1 = sorted[0],
         string2 = sorted[sorted.length-1],
         i = 0,
@@ -125,7 +133,10 @@ const Duplicates = class {
       i++;
     }
 
-    return string1.slice(-i);
+    if (i) {
+      return string1.slice(-i);
+    }
+    return '';
   }
 
   /**
@@ -141,7 +152,7 @@ const Duplicates = class {
       return ''; // or null or undefined; your choice
     }
 
-    var sorted = strings.slice(0).sort(), // copy the array before sorting!
+    let sorted = strings.slice(0).sort(), // copy the array before sorting!
         string1 = sorted[0],
         string2 = sorted[sorted.length-1],
         i = 0,
@@ -151,7 +162,10 @@ const Duplicates = class {
       i++;
     }
 
-    return string1.slice(0, i);
+    if (i) {
+      return string1.slice(0, i);
+    }
+    return '';
   }
 
   /**

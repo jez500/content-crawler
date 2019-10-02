@@ -9,7 +9,7 @@ Run `npm install` to include dependencies.
 
 ## Building
 
-Run `npm run build` to build the site. This includes all the node packages in a single file at `public/bundle.js`
+Run `npm run build` to build the site. This includes all the node packages in a single file at `public/bundle.js`. You must build the site as part of install.
 
 ## Testing
 
@@ -17,11 +17,10 @@ Run `npm run test` to run javascript tests with "Mocha" against the site.
 
 ## Starting a crawl
 
-Run `npm run crawl FULL_URL_OF_SITE_TO_CRAWL CLIENT_SECRET_KEY` replacing `FULL_URL_OF_SITE_TO_CRAWL` with the start url of the site
-you want to crawl and CLIENT_SECRET_KEY with a unique string shared with this client. eg `npm run crawl http://example.com/ SECRET`.
+Run `npm run crawl FULL_URL_OF_SITE_TO_CRAWL -- --authKey CLIENT_SECRET_KEY` replacing `FULL_URL_OF_SITE_TO_CRAWL` with the start url of the site
+you want to crawl and CLIENT_SECRET_KEY with a unique string shared with this client. eg `npm run crawl http://example.com/ -- --authKey SECRET`.
 
-You can optionally pass a third argument that will filter only urls that contain this string. eg
-`npm run crawl http://example.com/foo example.com/foo`
+Full command line usage can be seen with: `npm run crawl -- --help`.
 
 ## Starting a crawl from the site.
 
@@ -52,6 +51,10 @@ After a crawl is complete, visit `/public/index.html` to browse the crawl result
 
 Crawl data is saved as a JSON file in `/public/sites`. This data may be useful for ingesting into other applications 
 or migrations. A unique unidex of the crawled sites is at "/public/sites/SECRET-index.json".
+
+## Master list
+
+If a file named /public/sites/SECRET-index.json.master exists, this will be treated as a master account and will see all the other clients and can add and remove clients from the list in the webpage.
 
 ## Author
 

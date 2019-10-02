@@ -9,7 +9,7 @@ const CrawlerSettings = class {
    *  - The list of settings to apply to this web crawl.
    */
   constructor(startUrl = '', settings = {}) {
-    let propKey = null;
+    let propKey = null, showHelp = false;
 
     // Ensure there is a valid url to crawl.
     if (!startUrl) {
@@ -18,20 +18,26 @@ const CrawlerSettings = class {
 
     // Settings.
     this.defaultSettings(startUrl);
+    if (startUrl == '--help') {
+      throw new Error(this.generateHelp());
+    }
 
     for (propKey in settings) {
       if (Object.prototype.hasOwnProperty.call(settings, propKey)) {
-        if (!Object.prototype.hasOwnProperty.call(this, propKey)) {
+        if (!Object.prototype.hasOwnProperty.call(this, propKey) ||
+            propKey == 'help') {
 
-          let usage = "\n\n  Valid arguments are:\n\n",
-              key = '';
-
-          for (key in Object.keys(this)) {
-            usage += '   --' + key + ' ' + this[key] + "\n";
-          }
+          let usage = this.generateHelp();
 
           throw new Error('Invalid argument passed to settings: ' + propKey + usage);
         }
+      }
+    }
+
+    // Don't set undefined values.
+    for (propKey in settings) {
+      if (typeof (settings[propKey]) == 'undefined') {
+        delete settings[propKey];
       }
     }
 
@@ -44,8 +50,27 @@ const CrawlerSettings = class {
       throw new Error('Auth key is required.');
     } else {
       // Only allow valid filename characters.
-      this.authKey = this.authKey.replace(/[^A-Za-z0-9]/g, "");
+      this.authKey = this.authKey.replace(/[^A-Za-z0-9\-]/g, "");
     }
+  }
+
+  /**
+   * Generate CLI usage instructions.
+   * @return {string}
+   */
+  generateHelp() {
+    let usage = "\n\n  Valid arguments are:\n\n",
+        key = '',
+        exclude = ['domain', 'protocol', 'proxy', 'imageLinks'];
+
+
+    Object.keys(this).forEach(key => {
+      if (!exclude.includes(key)) {
+        usage += '   --' + key + ' \'' + this[key] + "'\n";
+      }
+    });
+
+    return usage;
   }
 
   /**
@@ -59,23 +84,29 @@ const CrawlerSettings = class {
     this.startUrl = url;
     this.domain = url.hostname;
     this.protocol = url.protocol;
-    this.delay = 5;
     this.concurrentRequestsLimit = 1;
     this.saveDir = './public/sites';
     this.urlFilter = '';
     this.excludeFilter = '';
+    this.delay = 5;
+    this.searchString = '';
+    this.replaceString = '';
+    this.redirectScript = '';
+    this.scriptExtensions = '';
     this.proxy = '';
     this.downloadImages = false;
+    this.runScripts = false;
     this.removeEmptyNodes = true;
     this.removeAttributes = true;
     this.trimWhitespace = true;
     this.simplifyStructure = true;
     this.removeDuplicates = true;
     this.contentMapping = '';
-    this.removeElements = '';
+    this.removeElements = 'nav, [role=navigation], aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object';
     this.robots = true;
     this.authKey = '';
     this.imageLinks = [];
+    this.documentLinks = [];
     this.interval = 1000 * this.delay;
   }
 
@@ -87,6 +118,11 @@ const CrawlerSettings = class {
    *  - Use this URL if true.
    */
   filterUrl(url, context_url) {
+    if (!context_url) {
+      context_url = this.startUrl;
+    }
+    url = new URL(url, context_url).href;
+
     // If urlFilter settings exists, check url contains it.
     let valid = !(this.urlFilter && url.indexOf(this.urlFilter) === -1);
 
@@ -100,18 +136,39 @@ const CrawlerSettings = class {
       }
     }
 
-    // Don't download images unless we are supposed to.
-    if (!this.downloadImages) {
-      if (url.indexOf('.jpg') !== -1 ||
-          url.indexOf('.png') !== -1 ||
-          url.indexOf('.bmp') !== -1 ||
-          url.indexOf('.svg') !== -1 ||
-          url.indexOf('.gif') !== -1) {
+    // Does this string end with any of the array elements?
+    let endsWith = function(suffix) {
+      return this.endsWith(suffix);
+    }.bind(url);
+
+    let imageSuffixes = ['.jpg', '.jpeg', '.png', '.svg', '.bmp', '.gif'];
+
+    if (imageSuffixes.some(endsWith)) {
+      // We just want images from the same domain.
+      if ((new Url(url)).hostname == (new URL(this.startUrl)).hostname) {
+        // Don't download, just remember it.
         this.imageLinks[url] = {
           url: url,
           data: url,
+          id: url,
         };
-        valid = false;
+      }
+    }
+    if (valid) {
+      let documentSuffixes = ['.doc', '.docx', '.dot', '.pdf', '.xls', '.xlsx', '.ps', '.eps', '.rtf', '.ppt', '.pptx', '.odt'];
+
+      if (documentSuffixes.some(endsWith)) {
+        // We just want documents from the same domain.
+        console.log('Compare document hosts');
+        console.log(url, this.startUrl);
+        if ((new Url(url)).hostname == (new URL(this.startUrl)).hostname) {
+          // Don't download, just remember it.
+          this.documentLinks[url] = {
+            url: url,
+            contextUrl: context_url,
+            id: url,
+          };
+        }
       }
     }
 
@@ -129,6 +186,16 @@ const CrawlerSettings = class {
     return links;
   }
 
+  /**
+   * Report about any document links we found and skipped.
+   */
+  getDocumentLinks() {
+    let links = this.documentLinks;
+
+    // Reset the list to empty.
+    this.documentLinks = [];
+    return links;
+  }
 };
 
 module.exports = CrawlerSettings;

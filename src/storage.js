@@ -76,7 +76,6 @@ const Storage = class {
     }
     else if(this.isWeb()) {
       fileName = this.cleanLocalStorageKey(fileName);
-      console.log(fileName);
 
       return new Promise((resolve, reject) => {
         let request = window.indexedDB.open('crawler');
