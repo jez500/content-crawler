@@ -58,6 +58,13 @@ const Crawler = class {
     this.completeHandler = this.log;
   }
 
+  decodeEntities(src) {
+    let e = document.createElement('textarea');
+    e.innerHTML = src;
+
+    return e.childNodes.length == 0 ? '' : e.childNodes[0].nodeValue;
+  }
+
   scorePages() {
     let i = 0,
         page = {},
@@ -117,16 +124,18 @@ const Crawler = class {
 
     for (url in links) {
       link = links[url];
+      let alias = this.generateAlias(link.url);
       // Link it to the page.
       for (i in this.db.pages) {
         if (this.db.pages[i].url.replace(/#.*/, '') == link.contextUrl) {
-          this.db.pages[i].documents[link.url] = { url: link.url, id: link.url };
+          this.db.pages[i].documents[link.url] = { url: link.url, id: link.url, alias: alias };
+
           break;
         }
       }
 
       // Remove the context url and add it to the global list.
-      this.db.documents[url] = { url: link.url, id: link.url };
+      this.db.documents[url] = { url: link.url, id: link.url, alias: alias };
     }
 
     // Turn assets into arrays.
@@ -181,7 +190,7 @@ const Crawler = class {
           }
           // Replace redirect links in the body.
           page.body = page.body.replace(pattern, function(match, p1) {
-            return decodeURIComponent(p1);
+            return this.decodeEntities(p1);
           });
         }
 
@@ -215,7 +224,7 @@ const Crawler = class {
         }
 
         // 8. Kill %20 invalid urls.
-        page.alias = decodeURIComponent(page.alias);
+        page.alias = this.decodeEntities(page.alias);
 
         // 10. Generate Parents for the menu.
 
@@ -242,7 +251,11 @@ const Crawler = class {
         }
 
         // 13. Decode entities in titles.
-        page.title = decodeURIComponent(page.title);
+        page.title = this.decodeEntities(page.title);
+
+        // 14. Remove titles from the body content.
+        pattern = /<h1>([^<]*)<\/h1>/g;
+        page.body = page.body.replace(pattern, '');
 
         // All pages must have a title.
         if (page.title.trim() == '') {
@@ -415,6 +428,7 @@ const Crawler = class {
 
     // Handle documents.
     this.crawler.addHandler("application", (context) => {
+      this.log("Document retrieved: " + context.url);
       this.applicationHandler(context);
     });
 
@@ -607,7 +621,7 @@ const Crawler = class {
         title: context.$('title').text(),
         url: context.url,
         mediaType: context.contentType,
-        contentType: contentType.type,
+        contentType: matchingType.type,
         size: Math.round((Buffer.byteLength(context.body) / 1024)),
         forms: this.getForms(mainText, context.url),
         images: this.getImages(mainText, context.url),
@@ -615,7 +629,32 @@ const Crawler = class {
         search: '',
         score: 0,
         documents: {},
+        fields: [],
       };
+
+      this.log('Examine fields');
+      // Loop over custom fields for this contentType and extract them.
+      matchingType.fields.forEach(function(field) {
+        let all = $.load(mainText);
+        let start = all(field.start);
+        let valueText = '', matches = null;
+        let container = $.load('');
+
+        matches = start.nextUntil(field.end);
+        matches.each(function(index, node) {
+          container('body').append(node);
+        });
+
+        valueText = container('body').html();
+        start.remove();
+        mainText = all('body').html();
+        res.body = mainText;
+
+        res.fields.push({
+          name: field.field,
+          value: valueText,
+        });
+      });
       let heading = $('h1', mainText).first().text();
       if (heading) {
         res.title = heading;
@@ -673,16 +712,32 @@ const Crawler = class {
           if (line.length > 2) {
             search = line[2].trim();
           }
+
+          let fields = [], i = 0;
+          this.log('Extract fields');
+
+          // Extract fields for this content type.
+          for (i = 3; (i + 2) < line.length; i+=3) {
+            fields.push({
+              start: line[i],
+              end: line[i+1],
+              field: line[i+2]
+            });
+          }
+
           // Dont return, we want a list of all possible matches.
           valid.push({
             search: search,
-            type: type
+            type: type,
+            fields: fields
           });
         }
       }
     }
     // Fallback - always included it last.
     valid.push({ search: '', type: 'page' });
+
+    this.log('mapContentType: ' + url + ' result: ' + JSON.stringify(valid));
     return valid;
   }
 

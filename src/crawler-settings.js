@@ -63,7 +63,6 @@ const CrawlerSettings = class {
         key = '',
         exclude = ['domain', 'protocol', 'proxy', 'imageLinks'];
 
-
     Object.keys(this).forEach(key => {
       if (!exclude.includes(key)) {
         usage += '   --' + key + ' \'' + this[key] + "'\n";
@@ -153,14 +152,13 @@ const CrawlerSettings = class {
           id: url,
         };
       }
+      valid = false;
     }
-    if (valid) {
+    if (true || valid) {
       let documentSuffixes = ['.doc', '.docx', '.dot', '.pdf', '.xls', '.xlsx', '.ps', '.eps', '.rtf', '.ppt', '.pptx', '.odt'];
 
       if (documentSuffixes.some(endsWith)) {
         // We just want documents from the same domain.
-        console.log('Compare document hosts');
-        console.log(url, this.startUrl);
         if ((new Url(url)).hostname == (new URL(this.startUrl)).hostname) {
           // Don't download, just remember it.
           this.documentLinks[url] = {
@@ -169,6 +167,7 @@ const CrawlerSettings = class {
             id: url,
           };
         }
+        valid = false;
       }
     }
 

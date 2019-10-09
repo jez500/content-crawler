@@ -1,5 +1,6 @@
 /node_modules
 /public/sites
 /public/bundle.js
+/public/ui.js
 package-lock.json
 .idea

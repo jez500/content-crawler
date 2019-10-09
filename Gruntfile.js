@@ -5,6 +5,7 @@ module.exports = function(grunt) {
       dist: {
         files: {
           'public/bundle.js': ['src/*.js'],
+          'public/ui.js': ['ui/*.js'],
         },
         options: {
           browserifyOptions: {
@@ -15,7 +16,7 @@ module.exports = function(grunt) {
       }
     },
     jshint: {
-      files: ['src/*.js'],
+      files: ['src/*.js', 'ui/*.js'],
       options: {
         "globals": {
 	  "console": true
@@ -37,6 +38,7 @@ module.exports = function(grunt) {
           require: [
             'jsdom-global/register',
             'public/bundle.js',
+            'public/ui.js',
           ],
         },
         src: ['test/*.js']
