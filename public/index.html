@@ -406,15 +406,52 @@
               <md-checkbox v-model="trimWhitespace"> Trim whitespace </md-checkbox>
               <md-checkbox v-model="simplifyStructure"> Simplify structure </md-checkbox>
               <md-checkbox v-model="removeDuplicates"> Remove duplicated content </md-checkbox>
-            <md-field>
-              <label>
-                Map URLs to content types.
-              </label>
-              <md-textarea v-model="contentMapping" placeholder="
-
-                  http://url/*/specific | custom-content-type | css-search-string
-                  http://url | other "></md-textarea>
-            </md-field>
+            <md-list>
+              <div v-for="(contentType, index) in contentTypes" :key="index">
+              <md-list-item>
+                <md-field>
+                  <label> Content Type </label>
+                  <md-input v-model="contentType.name"></md-input>
+                </md-field>
+                <md-field>
+                  <label> URL Pattern </label>
+                  <md-input v-model="contentType.urlpattern"></md-input>
+                </md-field>
+                <md-field>
+                  <label> CSS Search </label>
+                  <md-input v-model="contentType.search"></md-input>
+                </md-field>
+              </md-list-item>
+                <md-list-item v-for="(field, fieldIndex) in contentType.fields" :key="fieldIndex">
+                  <md-field>
+                    <label> Field name </label>
+                    <md-input v-model="field.name"></md-input>
+                  </md-field>
+                  <md-field>
+                    <label> Start CSS search </label>
+                    <md-input v-model="field.start"></md-input>
+                  </md-field>
+                  <md-field>
+                    <label> End CSS search </label>
+                    <md-input v-model="field.end"></md-input>
+                  </md-field>
+              </md-list-item>
+              <md-list-item>
+                <md-button @click="addField(index)" class="md-primary md-raised md-button">
+                  Add field
+                </md-button>
+                <md-button @click="removeField(index)" class="md-primary md-raised md-button">
+                  Remove field
+                </md-button>
+              </md-list-item>
+              </div>
+            </md-list>
+            <md-button @click="addContentType" class="md-primary md-raised md-button">
+              Add content type
+            </md-button>
+            <md-button @click="removeContentType" class="md-primary md-raised md-button">
+              Remove content type
+            </md-button>
             <md-field>
               <label>
                 Remove elements

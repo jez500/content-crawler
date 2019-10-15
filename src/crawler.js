@@ -628,8 +628,7 @@ const Crawler = class {
         body: mainText,
         search: '',
         score: 0,
-        documents: {},
-        fields: [],
+        documents: {}
       };
 
       this.log('Examine fields');
@@ -650,10 +649,10 @@ const Crawler = class {
         mainText = all('body').html();
         res.body = mainText;
 
-        res.fields.push({
-          name: field.field,
-          value: valueText,
-        });
+        let fieldName = 'field_' + field.field.trim();
+        let fieldValue = valueText.trim();
+
+        res[fieldName] = fieldValue;
       });
       let heading = $('h1', mainText).first().text();
       if (heading) {

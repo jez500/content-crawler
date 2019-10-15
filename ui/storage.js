@@ -12,6 +12,66 @@ const Storage = class {
   }
 
   /**
+   * Collapse the contentTypes into a string.
+   */
+  implodeContentMap(contentTypes = []) {
+    // Explode the contentMapping into nested objects.
+    let maps = contentMapping.split(/\r?\n/);
+    let contentTypes = [];
+    let index = 0, line = '', urlPattern = null, i = 0, name = '', search = '';
+    for (index in maps) {
+      line = maps[index].split('|');
+      if (line.length > 2) {
+        urlPattern = line[0];
+        name = line[1];
+        search = line[2];
+        let fields = [];
+        let fieldname = '', fieldstart = '', fieldend = '';
+        for (i = 3; i < (line.length - 2); i+= 3) {
+          fieldstart = line[i].trim();
+          fieldend = line[i+1].trim();
+          fieldname = line[i+2].trim();
+
+          fields.push({ start: fieldstart, end: fieldend, name: fieldname });
+        }
+
+        contentTypes.push({ name: name, urlpattern: urlPattern, search: search, fields: fields });
+      }
+    }
+    return contentTypes;
+  }
+
+  /**
+   * Expand the contentMap into a set of nested objects.
+   */
+  explodeContentMap(contentMapping = '') {
+    // Explode the contentMapping into nested objects.
+    let maps = contentMapping.split(/\r?\n/);
+    let contentTypes = [];
+    let index = 0, line = '', urlPattern = null, i = 0, name = '', search = '';
+    for (index in maps) {
+      line = maps[index].split('|');
+      if (line.length > 2) {
+        urlPattern = line[0];
+        name = line[1];
+        search = line[2];
+        let fields = [];
+        let fieldname = '', fieldstart = '', fieldend = '';
+        for (i = 3; i < (line.length - 2); i+= 3) {
+          fieldstart = line[i].trim();
+          fieldend = line[i+1].trim();
+          fieldname = line[i+2].trim();
+
+          fields.push({ start: fieldstart, end: fieldend, name: fieldname });
+        }
+
+        contentTypes.push({ name: name, urlpattern: urlPattern, search: search, fields: fields });
+      }
+    }
+    return contentTypes;
+  }
+
+  /**
    * Read objects from local storage with this "key".
    *
    * @param {string} key
@@ -19,6 +79,7 @@ const Storage = class {
    * @return void
    */
   getStorage(key, target) {
+    let storage = this;
     let request = window.indexedDB.open('crawler');
     request.onupgradeneeded = function() {
       this.result.createObjectStore('files');
@@ -68,6 +129,9 @@ const Storage = class {
           this.removeDuplicates = settings.removeDuplicates;
           this.contentMapping = settings.contentMapping;
           this.removeElements = settings.removeElements;
+
+          this.contentTypes = storage.explodeContentMap(this.contentMapping);
+
         }.bind(target);
       }.bind(target);
     }.bind(target);

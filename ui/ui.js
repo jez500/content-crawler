@@ -56,6 +56,7 @@ const UI = class {
         authKey: '',
         rawJSON: '',
         contentMapping: '',
+        contentTypes: [],
         removeElements: 'nav, aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object',
         domainToLoad: '',
         perPage: 10,
@@ -365,6 +366,8 @@ const UI = class {
             this.url = 'http://' + this.url;
           }
 
+          this.contentMapping = this.localStorage.implodeContentMap(this.contentTypes);
+
           window.crawl(this.url,
               this.authKey,
               this.proxy,
@@ -486,7 +489,11 @@ const UI = class {
                   this.removeDuplicates = settings.removeDuplicates;
                   this.contentMapping = settings.contentMapping;
                   this.removeElements = settings.removeElements;
+
+                  this.contentTypes = this.localStorage.explodeContentMap(this.contentMapping);
                 });
+
+
             });
         },
         tabChanged: function(id) {
@@ -551,6 +558,18 @@ const UI = class {
           source.select();
           document.execCommand("copy");
           document.body.removeChild(source);
+        },
+        addContentType: function() {
+          this.contentTypes.push( { name: '', url: '', search: '', fields: [] } );
+        },
+        removeContentType: function() {
+          this.contentTypes.pop();
+        },
+        addField: function(index) {
+          this.contentTypes[index].fields.push( { start: '', end: '', name: ''} );
+        },
+        removeField: function(index) {
+          this.contentTypes[index].fields.pop();
         },
         homePage() {
           this.results.domain = '';
