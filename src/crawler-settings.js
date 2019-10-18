@@ -107,6 +107,7 @@ const CrawlerSettings = class {
     this.imageLinks = [];
     this.documentLinks = [];
     this.interval = 1000 * this.delay;
+    this.shortenUrl = false;
   }
 
   /**
@@ -121,9 +122,18 @@ const CrawlerSettings = class {
       context_url = this.startUrl;
     }
     url = new URL(url, context_url).href;
+    let valid = false;
 
-    // If urlFilter settings exists, check url contains it.
-    let valid = !(this.urlFilter && url.indexOf(this.urlFilter) === -1);
+    // If urlFilter settings exists, check url contains any.
+    if (this.urlFilter) {
+      let filters = this.urlFilter.split('|');
+      let index = 0;
+      for (index = 0; index < filters.length; index++) {
+        valid = valid || (url.indexOf(filters[index]) !== -1);
+      }
+    } else {
+      valid = true;
+    }
 
     // If excludeFilter exists, check we don't have it.
     if (this.excludeFilter) {
@@ -145,6 +155,9 @@ const CrawlerSettings = class {
     if (imageSuffixes.some(endsWith)) {
       // We just want images from the same domain.
       if ((new Url(url)).hostname == (new URL(this.startUrl)).hostname) {
+        if (this.shortenUrl) {
+          url = this.shortenUrl(url);
+        }
         // Don't download, just remember it.
         this.imageLinks[url] = {
           url: url,
@@ -154,13 +167,16 @@ const CrawlerSettings = class {
       }
       valid = false;
     }
-    if (true || valid) {
+    if (valid) {
       let documentSuffixes = ['.doc', '.docx', '.dot', '.pdf', '.xls', '.xlsx', '.ps', '.eps', '.rtf', '.ppt', '.pptx', '.odt'];
 
       if (documentSuffixes.some(endsWith)) {
         // We just want documents from the same domain.
         if ((new Url(url)).hostname == (new URL(this.startUrl)).hostname) {
           // Don't download, just remember it.
+          if (this.shortenUrl) {
+            url = this.shortenUrl(url);
+          }
           this.documentLinks[url] = {
             url: url,
             contextUrl: context_url,
@@ -171,7 +187,13 @@ const CrawlerSettings = class {
       }
     }
 
-    return valid;
+    if (valid) {
+      if (this.shortenUrl) {
+        url = this.shortenUrl(url);
+      }
+      return url;
+    }
+    return false;
   }
 
   /**

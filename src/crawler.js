@@ -46,6 +46,7 @@ const Crawler = class {
       images: {},
       documents: {},
       forms: {},
+      redirects: [],
     };
 
     // Get an instance of the crawler.
@@ -114,11 +115,7 @@ const Crawler = class {
       pages = [];
 
     for (url in links) {
-      if (strlen($url) <= 128) {
-        this.db.images[url] = links[url];
-      } else {
-        this.db.imagesSkipped[url] = links[url];
-      }
+      this.db.images[url] = links[url];
     }
     links = this.settings.getDocumentLinks();
 
@@ -264,7 +261,24 @@ const Crawler = class {
 
         if (valid) {
           // No duplicate aliases.
-          pages[page.alias] = page;
+
+          let j = 0;
+          for (j = 0; j < i; j++) {
+            // Non empty text that duplicates an existing page.
+            this.log('Find redirects');
+            if (this.db.pages[j].body == this.db.pages[i].body && this.db.pages[j].body.length > 256) {
+              this.db.redirects.push({
+                from: this.db.pages[i].alias.substr(1),
+                to: 'internal:' + this.db.pages[j].alias
+              });
+              valid = false;
+              j = i;
+            }
+          }
+
+          if (valid) {
+            pages[page.alias] = page;
+          }
         }
       }
 
@@ -292,7 +306,8 @@ const Crawler = class {
             newpage.forms = [];
             newpage.body = '';
             newpage.mediaType = 'text/html';
-            newpage.contentType = 'page';
+            newpage.contentType = 'govcms_standard_page';
+            newpage.fields = [];
             let parentPage = page.parent.split('/');
             let title = parentPage.pop();
             newpage.parent = parentPage.join('/');
@@ -607,6 +622,7 @@ const Crawler = class {
           matchingType = contentType;
           break;
         }
+
         // The url matched, but there were no matching dom elements.
       } else {
         matchingType = contentType;
@@ -614,9 +630,14 @@ const Crawler = class {
         break;
       }
     }
+    if (!matchingType) {
+      matchingType = contentType;
+    }
 
     articles.each(function(contentCount, article) {
-      let mainText = $.html(this.extractContent($(article)));
+      let mainText = $.html($(article));
+      let bodyText = $.html(this.extractContent($(article)));
+
       let res = {
         title: context.$('title').text(),
         url: context.url,
@@ -625,13 +646,12 @@ const Crawler = class {
         size: Math.round((Buffer.byteLength(context.body) / 1024)),
         forms: this.getForms(mainText, context.url),
         images: this.getImages(mainText, context.url),
-        body: mainText,
+        body: bodyText,
         search: '',
         score: 0,
         documents: {}
       };
 
-      this.log('Examine fields');
       // Loop over custom fields for this contentType and extract them.
       matchingType.fields.forEach(function(field) {
         let all = $.load(mainText);
@@ -646,13 +666,15 @@ const Crawler = class {
 
         valueText = container('body').html();
         start.remove();
-        mainText = all('body').html();
-        res.body = mainText;
+        let node = all('body');
+        res.body = this.extractContent(node).html();
+        mainText = node.html();
 
         let fieldName = 'field_' + field.field.trim();
         let fieldValue = valueText.trim();
 
         res[fieldName] = fieldValue;
+        this.log('Field: ' + fieldName + ' => ' + fieldValue);
       });
       let heading = $('h1', mainText).first().text();
       if (heading) {
@@ -713,7 +735,6 @@ const Crawler = class {
           }
 
           let fields = [], i = 0;
-          this.log('Extract fields');
 
           // Extract fields for this content type.
           for (i = 3; (i + 2) < line.length; i+=3) {
@@ -733,10 +754,9 @@ const Crawler = class {
         }
       }
     }
-    // Fallback - always included it last.
-    valid.push({ search: '', type: 'page' });
+    // Fallback - always include it last.
+    valid.push({ search: '', type: 'govcms_standard_page', fields: [] });
 
-    this.log('mapContentType: ' + url + ' result: ' + JSON.stringify(valid));
     return valid;
   }
 
@@ -847,6 +867,7 @@ const Crawler = class {
       })
       .catch(err => { this.log(err); });
 
+    this.settings.shortenUrl = false;
     fileName = this.settings.saveDir + '/settings-' + this.settings.domain + '.json';
     this.storage.writeJson(fileName, this.settings)
       .then(() => { this.log('Settings updated'); })
@@ -896,8 +917,13 @@ const Crawler = class {
    */
   generateAlias(url) {
     let fullUrl = new URL(url);
+    let path = fullUrl.pathname;
 
-    return fullUrl.pathname;
+    if (path.length > 120) {
+      path = path.substr(0, 120) + '...';
+    }
+
+    return path;
   }
 
   /**

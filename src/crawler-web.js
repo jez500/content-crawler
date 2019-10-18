@@ -47,6 +47,7 @@ window.crawl = function(url,
                         removeDuplicates,
                         contentMapping,
                         removeElements,
+                        shortenUrl,
                         completeHandler) {
   let instance = new Crawler(url, {
     downloadImages: downloadImages,
@@ -68,6 +69,7 @@ window.crawl = function(url,
     removeEmptyNodes: removeEmptyNodes,
     removeAttributes: removeAttributes,
     trimWhitespace: trimWhitespace,
+    shortenUrl: shortenUrl,
   });
 
   // Do something when we finish.

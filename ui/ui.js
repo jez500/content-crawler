@@ -388,7 +388,27 @@ const UI = class {
               this.removeDuplicates,
               this.contentMapping,
               this.removeElements,
+              this.shortenUrl,
               this.crawlComplete);
+        },
+        /**
+         * If url is long, generate a short redirect version.
+         */
+        shortenUrl(url) {
+          // Shorter than 128 to be safe.
+          if (url.length > 124) {
+            console.log('Shorten this: ' + url);
+            let params = new URLSearchParams();
+            let token = Math.random().toString(36).substr(2);
+            params.append('url', url);
+            params.append('token', token);
+
+            axios.post('shorten.php', params);
+            url = new URL('shorten.php?token=' + token, document.location).href;
+            console.log('Result: ' + url);
+          }
+
+          return url + '';
         },
         crawlComplete() {
           this.crawling = false;

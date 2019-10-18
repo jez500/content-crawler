@@ -91,7 +91,7 @@ describe('Crawler', function() {
 
     expect(instance.mapContentType('http://other.com/')[0].type).to.be('other');
     expect(instance.mapContentType('http://example.com/2/something')[0].type).to.be('other2');
-    expect(instance.mapContentType('http://another.com/')[0].type).to.be('page');
+    expect(instance.mapContentType('http://another.com/')[0].type).to.be('govcms_standard_page');
     expect(instance.mapContentType('http://example.com/')[0].type).to.be('example');
     expect(instance.mapContentType('http://example.com/')[0].search).to.be('article');
   });
