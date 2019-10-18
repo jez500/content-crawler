@@ -237,7 +237,7 @@ const Crawler = class {
         page.parent = parentPage.join('/');
 
         // 11. For pages with a generic title, make a new one from the alias.
-        if (page.title == genericTitle) {
+        if (page.title == genericTitle && i > 0) {
           page.title = this.sanitiseTitle(page.alias);
         }
 

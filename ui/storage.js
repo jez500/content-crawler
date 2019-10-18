@@ -132,7 +132,10 @@ const Storage = class {
           this.scriptExtensions = settings.scriptExtensions;
           this.robots = settings.robots;
           this.simplifyStructure = settings.simplifyStructure;
+          this.trimWhitespace = settings.trimWhitespace;
           this.removeDuplicates = settings.removeDuplicates;
+          this.removeAttributes = settings.removeAttributes;
+          this.removeEmptyNodes = settings.removeEmptyNodes;
           this.contentMapping = settings.contentMapping;
           this.removeElements = settings.removeElements;
 
