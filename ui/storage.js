@@ -31,7 +31,7 @@ const Storage = class {
       map += contentType.search;
 
       for (fieldIndex in contentType.fields) {
-        field = contentType.fields[index];
+        field = contentType.fields[fieldIndex];
 
         map += '|';
         map += field.start;
@@ -39,6 +39,8 @@ const Storage = class {
         map += field.end;
         map += '|';
         map += field.name;
+        map += '|';
+        map += field.dateformat;
       }
 
       map += "\n";
@@ -62,13 +64,14 @@ const Storage = class {
         name = line[1];
         search = line[2];
         let fields = [];
-        let fieldname = '', fieldstart = '', fieldend = '';
-        for (i = 3; i < (line.length - 2); i+= 3) {
+        let fieldname = '', fieldstart = '', fieldend = '', fielddateformat = '';
+        for (i = 3; i < (line.length - 3); i+= 4) {
           fieldstart = line[i].trim();
           fieldend = line[i+1].trim();
           fieldname = line[i+2].trim();
+          fielddateformat = line[i+3].trim();
 
-          fields.push({ start: fieldstart, end: fieldend, name: fieldname });
+          fields.push({ start: fieldstart, end: fieldend, name: fieldname, dateformat: fielddateformat });
         }
 
         contentTypes.push({ name: name, urlpattern: urlPattern, search: search, fields: fields });
@@ -126,6 +129,7 @@ const Storage = class {
           this.excludeFilter = settings.excludeFilter;
           this.proxy = settings.proxy;
           this.delay = settings.delay;
+          this.urlLimit = settings.urlLimit;
           this.searchString = settings.searchString;
           this.replaceString = settings.replaceString;
           this.redirectScript = settings.redirectScript;

@@ -43,6 +43,7 @@ const CrawlerSettings = class {
 
     // Merge the default settings with those passed to the constructor.
     Object.assign(this, settings);
+    this.interval = 1000 * this.delay;
 
     // Verify there is a valid auth key.
     if (!this.authKey) {
@@ -88,6 +89,8 @@ const CrawlerSettings = class {
     this.urlFilter = '';
     this.excludeFilter = '';
     this.delay = 5;
+    this.urlLimit = 0;
+    this.urlCount = 0;
     this.searchString = '';
     this.replaceString = '';
     this.redirectScript = '';
@@ -149,6 +152,10 @@ const CrawlerSettings = class {
     let endsWith = function(suffix) {
       return this.endsWith(suffix);
     }.bind(url);
+
+    if (this.urlLimit && this.urlCount > this.urlLimit) {
+      valid = false;
+    }
 
     let imageSuffixes = ['.jpg', '.jpeg', '.png', '.svg', '.bmp', '.gif'];
 

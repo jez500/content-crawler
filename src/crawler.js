@@ -1,8 +1,10 @@
 const supercrawler = require("supercrawler");
 const extend = require('extend');
 const Storage = require('./storage');
+const moment = require('moment');
 const Duplicates = require('./duplicates');
 const Url = require('url-parse');
+const Buffer = require('buffer').Buffer;
 const _ = require('lodash');
 const $ = require('cheerio');
 const jsdom = require('jsdom');
@@ -265,7 +267,6 @@ const Crawler = class {
           let j = 0;
           for (j = 0; j < i; j++) {
             // Non empty text that duplicates an existing page.
-            this.log('Find redirects');
             if (this.db.pages[j].body == this.db.pages[i].body && this.db.pages[j].body.length > 256) {
               this.db.redirects.push({
                 from: this.db.pages[i].alias.substr(1),
@@ -353,6 +354,7 @@ const Crawler = class {
    */
   getCrawler() {
     let agent = "Mozilla/5.0 (compatible; supercrawler/1.0; +https://github.com/brendonboshell/supercrawler)";
+    let self = this;
 
     // Create an instance using as many of our settings as possible.
     let instance = new supercrawler.Crawler({
@@ -364,7 +366,7 @@ const Crawler = class {
         gzip: false  // Disable gzip compression because it's unreliable in the web version.
       }
     });
-
+    instance.pagingForms = [];
     // Patch the downloader to allow CORS requests using a proxy.
     instance._proxyUrl = this.settings.proxy;
     instance._runScripts = this.settings.runScripts;
@@ -372,19 +374,93 @@ const Crawler = class {
     // We are monkey patching the download function.
     instance._downloadUrlRaw = instance._downloadUrl;
     instance._downloadUrl = function(url, followRedirect) {
+      self.log('Download URL Raw: ' + url);
+      self.settings.urlCount++;
+
+      if (self.settings.urlLimit > 0 && (self.settings.urlCount > self.settings.urlLimit)) {
+        let err = 'URL limit reached: ' + self.settings.urlCount;
+        // Stop crawling.
+        instance._urlList._nextIndex = instance._urlList._list.length;
+        instance.emit("urllistcomplete");
+
+        throw new Error(err);
+      }
+
+      if (this.pagingForms[url]) {
+        this._request = {
+          method: 'POST',
+          form: this.pagingForms[url]
+        };
+      } else {
+        this._request = {};
+      }
+
       let raw = this._downloadUrlRaw(this._proxyUrl + url, followRedirect);
       let pageUrl = url;
 
       return raw.then(function (param) {
+        let response = param;
+        let buffer = Buffer.from(response.body);
+        let html = buffer.toString();
+        let scan = $.load(html);
+
+        // OK - Custom pagination for one site.
+        // We need to walk the entire list and append bits of it.
+        let pagingList = scan('#pagingList .current');
+        let pagingCurrent = false;
+        if (pagingList.length == 0) {
+          pagingList = scan('#pagingList li');
+          let currentItem = false;
+          pagingList.each(function(index, item) {
+            if (scan('a', item).length == 0) {
+              currentItem = item;
+            }
+          });
+          pagingCurrent = currentItem;
+        } else {
+          pagingCurrent = pagingList[0];
+        }
+        if (pagingCurrent) {
+          console.log('Look here');
+          let next = pagingCurrent.nextSibling;
+          let link = false;
+          if (next) {
+            link = scan('a', next);
+          }
+          if (link.length) {
+            link = link[0];
+            // We need form element name.
+            let href = link.attribs.href;
+
+            let parts = href.split("'");
+            let fieldName = parts[1];
+            let pageNumber = parts[3];
+
+            let state = scan('form [name="__SEAMLESSVIEWSTATE"]')[0].attribs.value;
+
+            let form = {
+              '__EVENTTARGET': fieldName,
+              '__EVENTARGUMENT': pageNumber,
+              '__SEAMLESSVIEWSTATE': state
+            };
+
+            let nextUrl = pageUrl;
+            let pos = nextUrl.indexOf('?');
+            nextUrl = nextUrl.substring(0, pos != -1 ? pos : nextUrl.length);
+
+            nextUrl += '?page=' + pageNumber;
+
+            this.pagingForms[nextUrl] = form;
+            nextUrl = new supercrawler.Url(nextUrl);
+            this.getUrlList().insertIfNotExists(nextUrl);
+          }
+        }
         if (!this._runScripts) {
           return param;
         }
         // What we are doing here is running the javascript in a virtual DOM
         // after loading the page. This allows content to be updated by js
         // before we look at it.
-        let response = param;
-        let buffer = Buffer.from(response.body);
-        let html = buffer.toString();
         let loader = new jsdom.ResourceLoader();
         let proxyUrl = this._proxyUrl;
 
@@ -392,7 +468,7 @@ const Crawler = class {
         loader.fetchRaw = loader.fetch;
         loader.fetch = function(urlString, options = {}) {
           urlString = proxyUrl + urlString;
-          return this.fetchRaw(urlString, options);
+          return this._downloadUrl(urlString, options);
         }.bind(loader);
 
         let client = new jsdom.JSDOM(html, {
@@ -417,7 +493,7 @@ const Crawler = class {
     instance.on('crawledurl', (url, errorCode, statusCode) => {
       // Report failed downloads.
       if (errorCode) {
-        this.log('Error fetching URL: ' + url + ' => ' + errorCode);
+        self.log('Error fetching URL: ' + url + ' => ' + errorCode);
       }
     });
 
@@ -567,6 +643,11 @@ const Crawler = class {
         total = all._list.length,
         current = all._nextIndex,
         progress = Math.floor(current * 100 / total);
+
+    if (this.settings.urlLimit && this.settings.urlCount > this.settings.urlLimit) {
+      this.log('Url limit reached: ' + this.settings.urlLimit);
+      return;
+    }
     this.log(current + ' complete of ' + total + ' urls ( ' + progress + ' % ).');
 
     let main = context.$('body');
@@ -657,25 +738,39 @@ const Crawler = class {
         let all = $.load(mainText);
         let start = all(field.start);
         let valueText = '', matches = null;
-        let container = $.load('');
+        let container = $.load(''), end = start;
 
         matches = start.nextUntil(field.end);
         matches.each(function(index, node) {
-          container('body').append(node);
+          if (field.field.includes('end')) {
+            // Only look at the last matching field.
+            end = $(node);
+          }
+          container('body').append($(node).clone());
         });
 
         valueText = container('body').html();
-        start.remove();
-        let node = all('body');
-        res.body = this.extractContent(node).html();
-        mainText = node.html();
 
         let fieldName = 'field_' + field.field.trim();
         let fieldValue = valueText.trim();
 
+        if (field.dateformat) {
+          if (field.field.includes('end')) {
+            fieldValue = end.text();
+          } else {
+            fieldValue = start.text();
+          }
+          let parser = moment(fieldValue, field.dateformat);
+          if (parser.isValid()) {
+            fieldValue = parser.format(moment.HTML5_FMT.DATETIME_LOCAL) + ':00';
+          } else {
+            fieldValue = '';
+          }
+        }
+
         res[fieldName] = fieldValue;
         this.log('Field: ' + fieldName + ' => ' + fieldValue);
-      });
+      }.bind(this));
       let heading = $('h1', mainText).first().text();
       if (heading) {
         res.title = heading;
@@ -737,11 +832,12 @@ const Crawler = class {
           let fields = [], i = 0;
 
           // Extract fields for this content type.
-          for (i = 3; (i + 2) < line.length; i+=3) {
+          for (i = 3; (i + 3) < line.length; i += 4) {
             fields.push({
               start: line[i],
               end: line[i+1],
-              field: line[i+2]
+              field: line[i+2],
+              dateformat: line[i+3]
             });
           }
 
@@ -810,6 +906,10 @@ const Crawler = class {
 
         // Apply same url filtering to images.
         let allow = this.settings.filterUrl(imgUrl, null);
+
+        if (allow) {
+          imgUrl = allow;
+        }
 
         if (this.settings.downloadImages) {
           // Queue it.

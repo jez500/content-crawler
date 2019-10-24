@@ -41,6 +41,7 @@ const UI = class {
         urlFilter: '',
         excludeFilter: '',
         delay: 5,
+        urlLimit: 0,
         searchString: '',
         replaceString: '',
         redirectScript: '',
@@ -228,6 +229,7 @@ const UI = class {
             excludeFilter: this.excludeFilter,
             proxy: this.proxy,
             delay: this.delay,
+            urlLimit: this.urlLimit,
             searchString: this.searchString,
             replaceString: this.replaceString,
             redirectScript: this.redirectScript,
@@ -374,6 +376,7 @@ const UI = class {
               this.urlFilter,
               this.excludeFilter,
               this.delay,
+              this.urlLimit,
               this.searchString,
               this.replaceString,
               this.redirectScript,
@@ -391,6 +394,19 @@ const UI = class {
               this.shortenUrl,
               this.crawlComplete);
         },
+        // Implement java hashcode to get unique(ish) number from string.
+        hash(src) {
+          let hash = 0, i = 0, c = 0;
+          if (src.length == 0) {
+            return hash;
+          }
+          for (i = 0; i < src.length; i++) {
+            c = src.charCodeAt(i);
+            hash = ((hash<<5)-hash)+c;
+            hash = hash & hash; // Convert to 32bit integer
+          }
+          return hash;
+        },
         /**
          * If url is long, generate a short redirect version.
          */
@@ -399,7 +415,7 @@ const UI = class {
           if (url.length > 124) {
             console.log('Shorten this: ' + url);
             let params = new URLSearchParams();
-            let token = Math.random().toString(36).substr(2);
+            let token = this.hash(url);
             params.append('url', url);
             params.append('token', token);
 
@@ -418,6 +434,9 @@ const UI = class {
         },
         getStorage(key) {
           return this.localStorage.getStorage(key, this);
+        },
+        removeStorage(key) {
+          return this.localStorage.removeStorage(key, this);
         },
         getClient(key) {
           this.loadClient(key).then((response) => {
@@ -500,6 +519,7 @@ const UI = class {
                   this.excludeFilter = settings.excludeFilter;
                   this.proxy = settings.proxy;
                   this.delay = settings.delay;
+                  this.urlLimit = settings.urlLimit;
                   this.searchString = settings.searchString;
                   this.replaceString = settings.replaceString;
                   this.redirectScript = settings.redirectScript;
@@ -586,7 +606,7 @@ const UI = class {
           this.contentTypes.pop();
         },
         addField: function(index) {
-          this.contentTypes[index].fields.push( { start: '', end: '', name: ''} );
+          this.contentTypes[index].fields.push( { start: '', end: '', name: '', dateformat: '' } );
         },
         removeField: function(index) {
           this.contentTypes[index].fields.pop();

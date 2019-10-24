@@ -28,7 +28,7 @@
       max-height: 5em;
     }
     .log--crawler {
-      max-height: 20em;
+      max-height: 35em;
       overflow: auto;
       background-color: #efefef ! important;
     }
@@ -168,6 +168,7 @@
                 </md-button>
               </md-table-cell>
               <md-table-cell md-label="Size" md-sort-by="size">{{ item.size }}KB</md-table-cell>
+              <md-table-cell md-label="Type">{{ item.contentType }}</md-table-cell>
               <md-table-cell md-label="Images">{{ item.images .length }}</md-table-cell>
               <md-table-cell md-label="Forms">{{ item.forms.length }}</md-table-cell>
               <md-table-cell md-label="Score">{{ item.score }}</md-table-cell>
@@ -383,6 +384,10 @@
                 <md-input v-model="delay" type="number"></md-input>
               </md-field>
               <md-field>
+                <label> Limit the number of urls to fetch </label>
+                <md-input v-model="urlLimit" type="number"></md-input>
+              </md-field>
+              <md-field>
                 <label> Search Pattern </label>
                 <md-input v-model="searchString"></md-input>
               </md-field>
@@ -434,6 +439,10 @@
                   <md-field>
                     <label> End CSS search </label>
                     <md-input v-model="field.end"></md-input>
+                  </md-field>
+                  <md-field>
+                    <label> Date format </label>
+                    <md-input v-model="field.dateformat"></md-input>
                   </md-field>
               </md-list-item>
               <md-list-item>
