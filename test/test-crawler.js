@@ -66,12 +66,12 @@ describe('Crawler', function() {
     let context = {
       url: 'http://localhost/',
       body: source,
-      contentType: 'text/html'
+      contentType: 'text/html',
     };
 
-    let images = instance.getImages(source);
+    let images = instance.getImages(source, 'http://localhost');
 
-    expect(images['http://localhost/img'].url).to.contain('localhost');
+    expect(images.images['http://localhost/img'].url).to.contain('localhost');
   });
 
   it('content type mapping with wildcards should be correct', function() {

@@ -422,8 +422,8 @@ const UI = class {
             params.append('url', url);
             params.append('token', token);
 
-            axios.post('shorten.php', params);
-            url = new URL('shorten.php?token=' + token, document.location).href;
+            axios.post('resource.php', params);
+            url = new URL('resource.php?token=' + token, document.location).href;
             console.log('Result: ' + url);
           }
 

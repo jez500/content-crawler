@@ -673,7 +673,10 @@ const Crawler = class {
 
     articles.each(function(contentCount, article) {
       let mainText = $.html($(article));
-      let bodyText = $.html(this.extractContent($(article)));
+      let forms = this.getForms(mainText, context.url);
+      let imageResult = this.getImages(mainText, context.url);
+      let images = imageResult.images;
+      let bodyText = $.html(this.extractContent($(imageResult.content)));
 
       let res = {
         title: context.$('title').text(),
@@ -681,8 +684,8 @@ const Crawler = class {
         mediaType: context.contentType,
         contentType: matchingType.type,
         size: Math.round((Buffer.byteLength(context.body) / 1024)),
-        forms: this.getForms(mainText, context.url),
-        images: this.getImages(mainText, context.url),
+        forms: forms,
+        images: images,
         body: bodyText,
         search: '',
         score: 0,
@@ -844,13 +847,15 @@ const Crawler = class {
    *
    * @param {Object} context
    * @param {String} pageUrl
-   * @return {Array}
-   *   - An array with the urls as keys and metadata as values.
+   * @return {Object}
+   *   - An object with the urls as an array named 'images' and the modified source text as 'content'
    */
   getImages(context, pageUrl) {
     let images = {}, count = 0, dataUrl = 0;
+    let source = $.load(context);
+    let tags = source('img');
 
-    $('img', context).each((i, d) => {
+    tags.each((i, d) => {
       let imgUrl = $(d).attr('src');
 
       if (!imgUrl) {
@@ -873,29 +878,50 @@ const Crawler = class {
       }
       else {
         // Relative urls need to be made full.
-        imgUrl = (new URL(imgUrl, pageUrl)).href;
-
-        // Query strings for images are likely duplicates.
-        imgUrl.substring(imgUrl.indexOf("?") + 1);
+        let url = new URL(imgUrl, pageUrl);
+        let imgOrigin = url.origin;
+        imgUrl = url.href;
 
         // Apply same url filtering to images.
         let allow = this.settings.filterUrl(imgUrl, null);
 
         if (allow) {
-          imgUrl = allow;
-        }
+          if (imgUrl != allow) {
+            $(d).attr('src', imgOrigin + '/' + allow.split('/').pop());
+            imgUrl = allow;
+          } else {
+            // Query strings for images are likely duplicates.
+            if (imgUrl.includes("?")) {
+              imgUrl = imgUrl.substring(0, imgUrl.indexOf("?"));
+              $(d).attr('src', imgUrl);
+            }
+          }
 
-        if (this.settings.downloadImages) {
-          // Queue it.
-          this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
+          if (this.settings.downloadImages) {
+            // Queue it.
+            this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
+          } else {
+            let proxyDownload = this.settings.proxy + imgUrl;
+            this.db.images[imgUrl] = { url: imgUrl, id: imgUrl, proxyUrl: proxyDownload, data: imgUrl};
+          }
+          images[imgUrl] = { url: imgUrl, id: imgUrl };
         } else {
-          let proxyDownload = this.settings.proxy + imgUrl;
-          this.db.images[imgUrl] = { url: imgUrl, id: imgUrl, proxyUrl: proxyDownload, data: imgUrl};
+          // Url was filtered but was from the same domain - remove the tag.
+          let hostUrl = new URL(pageUrl);
+          let url = new URL(imgUrl, pageUrl);
+          if (hostUrl.origin == url.origin) {
+            $(d).remove();
+          }
         }
-        images[imgUrl] = { url: imgUrl, id: imgUrl };
       }
     });
-    return images;
+
+    context = source.html();
+
+    return {
+      images: images,
+      content: context
+    };
   }
 
   /**
