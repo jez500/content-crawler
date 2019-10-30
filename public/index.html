@@ -468,6 +468,12 @@
               <md-textarea v-model="removeElements" placeholder="nav, aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object"></md-textarea>
             </md-field>
 
+            <md-field>
+              <label>
+                Custom script
+              </label>
+              <md-textarea v-model="process" placeholder=""></md-textarea>
+            </md-field>
 
               <div v-if="(Object.keys(this.storage).length < this.localMax) || this.indexMaster">
                 <p>

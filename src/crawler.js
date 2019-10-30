@@ -366,10 +366,11 @@ const Crawler = class {
         gzip: false  // Disable gzip compression because it's unreliable in the web version.
       }
     });
-    instance.pagingForms = [];
+    instance.dynamicForms = [];
     // Patch the downloader to allow CORS requests using a proxy.
     instance._proxyUrl = this.settings.proxy;
     instance._runScripts = this.settings.runScripts;
+    instance._process = this.settings.process;
 
     // We are monkey patching the download function.
     instance._downloadUrlRaw = instance._downloadUrl;
@@ -386,10 +387,10 @@ const Crawler = class {
         throw new Error(err);
       }
 
-      if (this.pagingForms[url]) {
+      if (this.dynamicForms[url]) {
         this._request = {
           method: 'POST',
-          form: this.pagingForms[url]
+          form: this.dynamicForms[url]
         };
       } else {
         this._request = {};
@@ -404,57 +405,12 @@ const Crawler = class {
         let html = buffer.toString();
         let scan = $.load(html);
 
-        // OK - Custom pagination for one site.
-        // We need to walk the entire list and append bits of it.
-        let pagingList = scan('#pagingList .current');
-        let pagingCurrent = false;
-        if (pagingList.length == 0) {
-          pagingList = scan('#pagingList li');
-          let currentItem = false;
-          pagingList.each(function(index, item) {
-            if (scan('a', item).length == 0) {
-              currentItem = item;
-            }
-          });
-          pagingCurrent = currentItem;
-        } else {
-          pagingCurrent = pagingList[0];
+        if (this._process) {
+          /*jshint -W054 */
+          let invoke = new Function('query', 'pageUrl', 'supercrawler', this._process).bind(this);
+          invoke(scan, pageUrl, supercrawler);
         }
-        if (pagingCurrent) {
-          console.log('Look here');
-          let next = pagingCurrent.nextSibling;
-          let link = false;
-          if (next) {
-            link = scan('a', next);
-          }
-          if (link.length) {
-            link = link[0];
-            // We need form element name.
-            let href = link.attribs.href;
 
-            let parts = href.split("'");
-            let fieldName = parts[1];
-            let pageNumber = parts[3];
-
-            let state = scan('form [name="__SEAMLESSVIEWSTATE"]')[0].attribs.value;
-
-            let form = {
-              '__EVENTTARGET': fieldName,
-              '__EVENTARGUMENT': pageNumber,
-              '__SEAMLESSVIEWSTATE': state
-            };
-
-            let nextUrl = pageUrl;
-            let pos = nextUrl.indexOf('?');
-            nextUrl = nextUrl.substring(0, pos != -1 ? pos : nextUrl.length);
-
-            nextUrl += '?page=' + pageNumber;
-
-            this.pagingForms[nextUrl] = form;
-            nextUrl = new supercrawler.Url(nextUrl);
-            this.getUrlList().insertIfNotExists(nextUrl);
-          }
-        }
         if (!this._runScripts) {
           return param;
         }
@@ -735,21 +691,39 @@ const Crawler = class {
 
       // Loop over custom fields for this contentType and extract them.
       matchingType.fields.forEach(function(field) {
-        let all = $.load(mainText);
-        let start = all(field.start);
-        let valueText = '', matches = null;
-        let container = $.load(''), end = start;
+        let all = $.load(mainText),
+          start = null,
+          valueText = '',
+          matches = null,
+          container = $.load(''),
+          end = null;
 
-        matches = start.nextUntil(field.end);
-        matches.each(function(index, node) {
-          if (field.field.includes('end')) {
-            // Only look at the last matching field.
-            end = $(node);
+        if (field.start == '[parent]') {
+          let alias = this.decodeEntities(this.generateAlias(res.url)).replace(/\/$/g, '');
+          let parents = alias.split('/');
+          if (parents.length > 1) {
+            // Skip current page.
+            parents.pop();
+
+            valueText = this.sanitiseTitle(parents.pop());
           }
-          container('body').append($(node).clone());
-        });
-
-        valueText = container('body').html();
+        } else {
+          start = all(field.start);
+          end = start;
+          if (field.end) {
+            matches = start.nextUntil(field.end);
+            matches.each(function(index, node) {
+              if (field.field.includes('end')) {
+                // Only look at the last matching field.
+                end = $(node);
+              }
+              container('body').append($(node).clone());
+            });
+            valueText = container('body').html();
+          } else {
+            valueText = start.text();
+          }
+        }
 
         let fieldName = 'field_' + field.field.trim();
         let fieldValue = valueText.trim();

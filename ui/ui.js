@@ -59,6 +59,7 @@ const UI = class {
         contentMapping: '',
         contentTypes: [],
         removeElements: 'nav, aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object',
+        process: '',
         domainToLoad: '',
         perPage: 10,
         pagesCurrentPage: 0,
@@ -239,6 +240,7 @@ const UI = class {
             removeDuplicates: this.removeDuplicates,
             contentMapping: this.contentMapping,
             removeElements: this.removeElements,
+            process: this.process,
             removeAttributes: this.removeAttributes,
             removeEmptyNodes: this.removeEmptyNodes,
           };
@@ -391,6 +393,7 @@ const UI = class {
               this.removeDuplicates,
               this.contentMapping,
               this.removeElements,
+              this.process,
               this.shortenUrl,
               this.crawlComplete);
         },
@@ -529,6 +532,7 @@ const UI = class {
                   this.removeDuplicates = settings.removeDuplicates;
                   this.contentMapping = settings.contentMapping;
                   this.removeElements = settings.removeElements;
+                  this.process = settings.process;
 
                   this.contentTypes = this.localStorage.explodeContentMap(this.contentMapping);
                 });

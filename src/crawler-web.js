@@ -26,6 +26,8 @@ const Crawler = require("./crawler");
  * @param {boolean} removeDuplicates
  * @param {string} contentMapping
  * @param {string} removeElements
+ * @param {string} process
+ * @param {function} shortenUrl
  * @param {function} completeHandler
  */
 window.crawl = function(url,
@@ -49,6 +51,7 @@ window.crawl = function(url,
                         removeDuplicates,
                         contentMapping,
                         removeElements,
+                        process,
                         shortenUrl,
                         completeHandler) {
   let instance = new Crawler(url, {
@@ -69,6 +72,7 @@ window.crawl = function(url,
     removeDuplicates: removeDuplicates,
     contentMapping: contentMapping,
     removeElements: removeElements,
+    process: process,
     removeEmptyNodes: removeEmptyNodes,
     removeAttributes: removeAttributes,
     trimWhitespace: trimWhitespace,

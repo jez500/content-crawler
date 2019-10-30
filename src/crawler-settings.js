@@ -105,6 +105,7 @@ const CrawlerSettings = class {
     this.removeDuplicates = true;
     this.contentMapping = '';
     this.removeElements = 'nav, [role=navigation], aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object';
+    this.process = '';
     this.robots = true;
     this.authKey = '';
     this.imageLinks = [];

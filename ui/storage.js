@@ -142,6 +142,7 @@ const Storage = class {
           this.removeEmptyNodes = settings.removeEmptyNodes;
           this.contentMapping = settings.contentMapping;
           this.removeElements = settings.removeElements;
+          this.process = settings.process;
 
           this.contentTypes = storage.explodeContentMap(this.contentMapping);
 
