@@ -12,8 +12,7 @@ const Crawler = require("./crawler");
  * @param {string} excludeFilter
  * @param {number} delay
  * @param {number} urlLimit
- * @param {string} searchString
- * @param {string} replaceString
+ * @param {string} searchReplace
  * @param {string} redirectScript
  * @param {string} scriptExtensions
  * @param {boolean} runScripts
@@ -37,8 +36,7 @@ window.crawl = function(url,
                         excludeFilter,
                         delay,
                         urlLimit,
-                        searchString,
-                        replaceString,
+                        searchReplace,
                         redirectScript,
                         scriptExtensions,
                         runScripts,
@@ -62,8 +60,7 @@ window.crawl = function(url,
     proxy: proxy,
     delay: delay,
     urlLimit: urlLimit,
-    searchString: searchString,
-    replaceString: replaceString,
+    searchReplace: searchReplace,
     redirectScript: redirectScript,
     scriptExtensions: scriptExtensions,
     robots: robots,

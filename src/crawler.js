@@ -167,8 +167,16 @@ const Crawler = class {
         }
 
         pattern = new RegExp(this.settings.searchString, 'g');
-        page.body = page.body.replace(pattern, this.settings.replaceString);
-        page.url = page.url.replace(pattern, this.settings.replaceString);
+        let replacements = this.settings.searchReplace.split('\n'),
+          index = 0,
+          replacement = [];
+
+        for (index = 0; index < replacements.length; index++) {
+          replacement = replacements[index].split('|');
+
+          page.body = page.body.replace(replacement[0], replacement[1]);
+          page.url = page.url.replace(replacement[0], replacement[1]);
+        }
 
         // 2. Clean the URL parameters
         // Trailing slashes removed.
@@ -511,7 +519,7 @@ const Crawler = class {
     let valid = [
       'img', 'input', 'select', 'textarea',
       'button', 'canvas', 'map', 'svg', 'picture', 'source',
-      'time', 'video', 'object', 'audio',
+      'time', 'video', 'object', 'audio', 'a'
     ];
 
     if (this.settings.removeEmptyNodes &&
@@ -539,7 +547,7 @@ const Crawler = class {
           'href', 'src', 'alt', 'role', 'name', 'value',
           'type', 'title', 'width', 'height', 'rows', 'cols',
           'size', 'for', 'method', 'action', 'placeholder',
-          'colspan', 'rowspan'
+          'colspan', 'rowspan', 'id'
         ];
 
         for (name in attributes) {

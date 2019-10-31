@@ -388,12 +388,8 @@
                 <md-input v-model="urlLimit" type="number"></md-input>
               </md-field>
               <md-field>
-                <label> Search Pattern </label>
-                <md-input v-model="searchString"></md-input>
-              </md-field>
-              <md-field>
-                <label> Replacement </label>
-                <md-input v-model="replaceString"></md-input>
+                <label> Search/Replacements </label>
+                <md-textarea v-model="searchReplace" placeholder="/This|/That"></md-textarea>
               </md-field>
               <md-field>
                 <label> Redirect Script </label>

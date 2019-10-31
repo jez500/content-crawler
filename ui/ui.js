@@ -42,8 +42,7 @@ const UI = class {
         excludeFilter: '',
         delay: 5,
         urlLimit: 0,
-        searchString: '',
-        replaceString: '',
+        searchReplace: '',
         redirectScript: '',
         scriptExtensions: '',
         robots: true,
@@ -231,8 +230,7 @@ const UI = class {
             proxy: this.proxy,
             delay: this.delay,
             urlLimit: this.urlLimit,
-            searchString: this.searchString,
-            replaceString: this.replaceString,
+            searchReplace: this.searchReplace,
             redirectScript: this.redirectScript,
             scriptExtensions: this.scriptExtensions,
             robots: this.robots,
@@ -379,8 +377,7 @@ const UI = class {
               this.excludeFilter,
               this.delay,
               this.urlLimit,
-              this.searchString,
-              this.replaceString,
+              this.searchReplace,
               this.redirectScript,
               this.scriptExtensions,
               this.runScripts,
@@ -523,8 +520,7 @@ const UI = class {
                   this.proxy = settings.proxy;
                   this.delay = settings.delay;
                   this.urlLimit = settings.urlLimit;
-                  this.searchString = settings.searchString;
-                  this.replaceString = settings.replaceString;
+                  this.searchReplace = settings.searchReplace;
                   this.redirectScript = settings.redirectScript;
                   this.scriptExtensions = settings.scriptExtensions;
                   this.robots = settings.robots;
