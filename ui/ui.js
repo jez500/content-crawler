@@ -358,6 +358,33 @@ const UI = class {
         toggleMenu() {
           this.menuVisible = !this.menuVisible;
         },
+        saveSettings() {
+          if (this.url.substring(0, 4) != 'http') {
+            this.url = 'http://' + this.url;
+          }
+
+          this.contentMapping = this.localStorage.implodeContentMap(this.contentTypes);
+
+          window.saveSettings(this.url,
+              this.proxy,
+              this.urlFilter,
+              this.excludeFilter,
+              this.delay,
+              this.urlLimit,
+              this.searchReplace,
+              this.redirectScript,
+              this.scriptExtensions,
+              this.runScripts,
+              this.downloadImages,
+              this.robots,
+              this.removeEmptyNodes,
+              this.removeAttributes,
+              this.simplifyStructure,
+              this.removeDuplicates,
+              this.contentMapping,
+              this.removeElements,
+              this.process);
+        },
         beginCrawl() {
           if (this.storage && Object.keys(this.storage).length >= this.localMax && !this.indexMaster) {
             return false;
