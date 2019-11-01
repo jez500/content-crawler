@@ -358,6 +358,31 @@ const UI = class {
         toggleMenu() {
           this.menuVisible = !this.menuVisible;
         },
+        loadSettings() {
+          let raw = prompt('Enter the JSON Settings to load');
+          let settings = JSON.parse(raw);
+
+          this.url = settings.startUrl;
+          this.downloadImages = settings.downloadImages;
+          this.runScripts = settings.runScripts;
+          this.urlFilter = settings.urlFilter;
+          this.excludeFilter = settings.excludeFilter;
+          this.proxy = settings.proxy;
+          this.delay = settings.delay;
+          this.urlLimit = settings.urlLimit;
+          this.searchReplace = settings.searchReplace;
+          this.redirectScript = settings.redirectScript;
+          this.scriptExtensions = settings.scriptExtensions;
+          this.robots = settings.robots;
+          this.simplifyStructure = settings.simplifyStructure;
+          this.removeDuplicates = settings.removeDuplicates;
+          this.contentMapping = settings.contentMapping;
+          this.removeElements = settings.removeElements;
+          this.process = settings.process;
+
+          this.contentTypes = this.localStorage.explodeContentMap(this.contentMapping);
+
+        },
         saveSettings() {
           if (this.url.substring(0, 4) != 'http') {
             this.url = 'http://' + this.url;
@@ -438,8 +463,8 @@ const UI = class {
          * If url is long, generate a short redirect version.
          */
         shortenUrl(url) {
-          // Shorter than 128 to be safe.
-          if (url.length > 124) {
+          // Shorter than 240 to be safe.
+          if (url.length > 240) {
             console.log('Shorten this: ' + url);
             let params = new URLSearchParams();
             let token = this.hash(url);
@@ -616,7 +641,7 @@ const UI = class {
           source.value = JSON.stringify(JSON.parse(this.rawJSON), null, 2);
           source.select();
           document.execCommand("copy");
-          document.body.removeChild(source);
+          // document.body.removeChild(source);
         },
         copyContentToClipboard: function(content) {
           var source = document.createElement("textarea");

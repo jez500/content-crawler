@@ -174,8 +174,8 @@ const Crawler = class {
         for (index = 0; index < replacements.length; index++) {
           replacement = replacements[index].split('|');
 
-          page.body = page.body.replace(replacement[0], replacement[1]);
-          page.url = page.url.replace(replacement[0], replacement[1]);
+          page.body = page.body.split(replacement[0]).join(replacement[1]);
+          page.url = page.url.split(replacement[0]).join(replacement[1]);
         }
 
         // 2. Clean the URL parameters
