@@ -773,8 +773,6 @@ const Crawler = class {
         if (title) {
           title = title.trim();
           res.title = title;
-        } else {
-          res.title += ' (' + contentType.type + ', ' + contentCount + ')';
         }
       }
       // Turn images into array.
