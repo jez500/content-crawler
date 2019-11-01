@@ -1,7 +1,7 @@
-/node_modules
-/public/sites
-/public/urls.json
-/public/bundle.js
-/public/ui.js
+node_modules
+public/sites
+public/urls.json
+public/bundle.js
+public/ui.js
 package-lock.json
 .idea
