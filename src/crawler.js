@@ -606,7 +606,9 @@ const Crawler = class {
     let all = this.crawler.getUrlList(),
         total = all._list.length,
         current = all._nextIndex,
-        progress = Math.floor(current * 100 / total);
+        progress = Math.floor((current*current) * 100 / (total*total));
+
+    // We squared the components because the list gets longer as we crawl new pages.
 
     if (this.settings.urlLimit && this.settings.urlCount > this.settings.urlLimit) {
       this.log('Url limit reached: ' + this.settings.urlLimit);
