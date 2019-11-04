@@ -40,6 +40,7 @@ const UI = class {
         runScripts: false,
         urlFilter: '',
         excludeFilter: '',
+        excludeTitleString: '',
         delay: 5,
         urlLimit: 0,
         searchReplace: '',
@@ -227,6 +228,7 @@ const UI = class {
             runScripts: this.runScripts,
             urlFilter: this.urlFilter,
             excludeFilter: this.excludeFilter,
+            excludeTitleString: this.excludeTitleString,
             proxy: this.proxy,
             delay: this.delay,
             urlLimit: this.urlLimit,
@@ -367,6 +369,7 @@ const UI = class {
           this.runScripts = settings.runScripts;
           this.urlFilter = settings.urlFilter;
           this.excludeFilter = settings.excludeFilter;
+          this.excludeTitleString = settings.excludeTitleString;
           this.proxy = settings.proxy;
           this.delay = settings.delay;
           this.urlLimit = settings.urlLimit;
@@ -394,6 +397,7 @@ const UI = class {
               this.proxy,
               this.urlFilter,
               this.excludeFilter,
+              this.excludeTitleString,
               this.delay,
               this.urlLimit,
               this.searchReplace,
@@ -427,6 +431,7 @@ const UI = class {
               this.proxy,
               this.urlFilter,
               this.excludeFilter,
+              this.excludeTitleString,
               this.delay,
               this.urlLimit,
               this.searchReplace,
@@ -569,6 +574,7 @@ const UI = class {
                   this.runScripts = settings.runScripts;
                   this.urlFilter = settings.urlFilter;
                   this.excludeFilter = settings.excludeFilter;
+                  this.excludeTitleString = settings.excludeTitleString;
                   this.proxy = settings.proxy;
                   this.delay = settings.delay;
                   this.urlLimit = settings.urlLimit;

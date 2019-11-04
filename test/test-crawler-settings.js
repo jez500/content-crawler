@@ -31,6 +31,7 @@ describe('CrawlerSettings', function() {
       authKey: 'test',
       urlFilter: 'http://example.org/',
       excludeFilter: 'no-thanks,another',
+      excludeTitleString: 'Cats Website -',
       downloadImages: true,
     };
     let instance = new CrawlerSettings('http://localhost/', settings);

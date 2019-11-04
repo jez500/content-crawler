@@ -127,6 +127,7 @@ const Storage = class {
           this.runScripts = settings.runScripts;
           this.urlFilter = settings.urlFilter;
           this.excludeFilter = settings.excludeFilter;
+          this.excludeTitleString = settings.excludeTitleString;
           this.proxy = settings.proxy;
           this.delay = settings.delay;
           this.urlLimit = settings.urlLimit;

@@ -11,6 +11,7 @@ const CrawlerSettings = require("./crawler-settings");
  * @param {string} proxy
  * @param {string} urlFilter
  * @param {string} excludeFilter
+ * @param {string} excludeTitleString
  * @param {number} delay
  * @param {number} urlLimit
  * @param {string} searchReplace
@@ -35,6 +36,7 @@ window.crawl = function(url,
                         proxy,
                         urlFilter,
                         excludeFilter,
+                        excludeTitleString,
                         delay,
                         urlLimit,
                         searchReplace,
@@ -58,6 +60,7 @@ window.crawl = function(url,
     runScripts: runScripts,
     urlFilter: urlFilter,
     excludeFilter: excludeFilter,
+    excludeTitleString: excludeTitleString,
     proxy: proxy,
     delay: delay,
     urlLimit: urlLimit,
@@ -89,6 +92,7 @@ window.crawl = function(url,
  * @param {string} proxy
  * @param {string} urlFilter
  * @param {string} excludeFilter
+ * @param {string} excludeTitleString
  * @param {number} delay
  * @param {number} urlLimit
  * @param {string} searchReplace
@@ -109,6 +113,7 @@ window.saveSettings = function(url,
                         proxy,
                         urlFilter,
                         excludeFilter,
+                        excludeTitleString,
                         delay,
                         urlLimit,
                         searchReplace,
@@ -130,6 +135,7 @@ window.saveSettings = function(url,
     proxy: proxy,
     urlFilter: urlFilter,
     excludeFilter: excludeFilter,
+    excludeTitleString: excludeTitleString,
     delay: delay,
     urlLimit: urlLimit,
     searchReplace: searchReplace,

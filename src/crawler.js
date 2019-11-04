@@ -250,6 +250,9 @@ const Crawler = class {
         if (page.title == genericTitle && i > 0) {
           page.title = this.sanitiseTitle(page.alias);
         }
+        if (this.settings.excludeTitleString) {
+          page.title = page.title.replace(new RegExp(this.settings.excludeTitleString, 'gi'), '');
+        }
 
         // 12. For listing pages, keep the first page content but add a comment.
         if (pages[page.alias]) {

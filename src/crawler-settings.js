@@ -88,6 +88,7 @@ const CrawlerSettings = class {
     this.saveDir = './public/sites';
     this.urlFilter = '';
     this.excludeFilter = '';
+    this.excludeTitleString = '';
     this.delay = 5;
     this.urlLimit = 0;
     this.urlCount = 0;
