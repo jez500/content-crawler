@@ -150,8 +150,8 @@ const CrawlerSettings = class {
     }
 
     // Does this string end with any of the array elements?
-    let endsWith = function(suffix) {
-      return this.endsWith(suffix);
+    let includes = function(suffix) {
+      return this.includes(suffix);
     }.bind(url);
 
     if (this.urlLimit && this.urlCount > this.urlLimit) {
@@ -160,7 +160,7 @@ const CrawlerSettings = class {
 
     let imageSuffixes = ['.jpg', '.jpeg', '.png', '.svg', '.bmp', '.gif'];
 
-    if (imageSuffixes.some(endsWith)) {
+    if (imageSuffixes.some(includes)) {
       // We just want images from the same domain.
       if ((new Url(url)).hostname == (new URL(this.startUrl)).hostname) {
         if (this.shortenUrl) {
@@ -178,7 +178,7 @@ const CrawlerSettings = class {
     if (valid) {
       let documentSuffixes = ['.doc', '.docx', '.dot', '.pdf', '.xls', '.xlsx', '.ps', '.eps', '.rtf', '.ppt', '.pptx', '.odt'];
 
-      if (documentSuffixes.some(endsWith)) {
+      if (documentSuffixes.some(includes)) {
         // We just want documents from the same domain.
         if ((new Url(url)).hostname == (new URL(this.startUrl)).hostname) {
           // Don't download, just remember it.

@@ -28,6 +28,9 @@ const Crawler = class {
     // Remove duplicated content across pages.
     this.elementHashCodes = {};
 
+    // Allow forms to be queued in a process step.
+    this.formQueue = [];
+
     // Get the instance of the storage for this class instance.
     this.storage = new Storage(this.settings.saveDir);
 
@@ -418,8 +421,8 @@ const Crawler = class {
 
         if (this._process) {
           /*jshint -W054 */
-          let invoke = new Function('query', 'pageUrl', 'supercrawler', this._process).bind(this);
-          invoke(scan, pageUrl, supercrawler);
+          let invoke = new Function('query', 'pageUrl', 'supercrawler', 'crawler', this._process).bind(this);
+          invoke(scan, pageUrl, supercrawler, self);
         }
 
         if (!this._runScripts) {
@@ -942,6 +945,12 @@ const Crawler = class {
    */
   getForms(context, pageUrl) {
     let forms = {};
+    if (this.formQueue) {
+      forms = this.formQueue;
+      Object.assign(this.db.forms, forms);
+      this.formQueue = [];
+      return _.values(forms);
+    }
     $('form', context).each((count, d) => {
       let actionUrl = (new URL($(d).attr('action'), pageUrl)).href,
         id = $(d).attr('id');
