@@ -1030,8 +1030,8 @@ const Crawler = class {
     let fullUrl = new URL(url);
     let path = fullUrl.pathname;
 
-    if (path.length > 120) {
-      path = path.substr(0, 120) + '...';
+    if (path.length > 220) {
+      path = path.substr(0, 220) + '...';
     }
 
     return path;
