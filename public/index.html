@@ -531,6 +531,14 @@
           </div>
         </div>
 
+        <md-dialog :md-active.sync="showCopy">
+          <md-dialog-title>Copy</md-dialog-title>
+          <textarea style="min-width: 400px; min-height: 400px;">{{ copyText }}</textarea>
+          <md-dialog-actions>
+            <md-button class="md-primary" @click="showCopy = false">Close</md-button>
+          </md-dialog-actions>
+        </md-dialog>
+
       </md-app-content>
     </md-app>
 

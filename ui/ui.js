@@ -77,6 +77,8 @@ const UI = class {
         newClientResponse: '',
 
         countSites: 0,
+        showCopy: false,
+        copyText: '',
         localMax: 3
       },
       computed: {
@@ -334,7 +336,10 @@ const UI = class {
                 let getRequest = st.get(this.jsonDir + this.authKey + '-index.json');
 
                 getRequest.onsuccess = function() {
-                  this.storage = getRequest.result;
+
+                  if (getRequest.result) {
+                    this.storage = getRequest.result;
+                  }
                   if (this.domainToLoad) {
                     this.localStorage.getStorage(this.domainToLoad, this);
                     this.domainToLoad = '';
@@ -642,20 +647,12 @@ const UI = class {
           });
         },
         copyJsonToClipboard: function() {
-          var source = document.createElement("textarea");
-          document.body.appendChild(source);
-          source.value = JSON.stringify(JSON.parse(this.rawJSON), null, 2);
-          source.select();
-          document.execCommand("copy");
-          // document.body.removeChild(source);
+          this.copyText = this.rawJSON;
+          this.showCopy = true;
         },
         copyContentToClipboard: function(content) {
-          var source = document.createElement("textarea");
-          document.body.appendChild(source);
-          source.value = content;
-          source.select();
-          document.execCommand("copy");
-          document.body.removeChild(source);
+          this.copyText = content;
+          this.showCopy = true;
         },
         addContentType: function() {
           this.contentTypes.push( { name: '', url: '', search: '', fields: [] } );

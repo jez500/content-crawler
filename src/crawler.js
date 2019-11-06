@@ -390,6 +390,10 @@ const Crawler = class {
     instance._downloadUrlRaw = instance._downloadUrl;
     instance._downloadUrl = function(url, followRedirect) {
       self.log('Download URL Raw: ' + url);
+      if (!self.settings.filterUrl(url)) {
+        throw new Error('URL is filtered:' + url);
+      }
+
       self.settings.urlCount++;
 
       if (self.settings.urlLimit > 0 && (self.settings.urlCount > self.settings.urlLimit)) {
