@@ -77,25 +77,26 @@ const Storage = class {
     else if(this.isWeb()) {
       fileName = this.cleanLocalStorageKey(fileName);
 
-      return new Promise((resolve, reject) => {
+      let promiseHandler = function(resolve, reject) {
         let request = window.indexedDB.open('crawler');
         request.onsuccess = function() {
           let db = request.result;
           let tx = db.transaction('files', 'readwrite');
           let st = tx.objectStore('files');
-          let putRequest = st.put(json, fileName);
+          let putRequest = st.put(this.json, this.filename);
 
           putRequest.onsuccess = function() {
             resolve(true);
           };
           putRequest.onerror = function() {
-            reject(getRequest.error);
+            reject(putRequest.error);
           };
-        };
+        }.bind({ filename: this.filename, json: this.json });
         request.onerror = function() {
           reject(request.error);
         };
-      });
+      }.bind({ filename: fileName, json: json});
+      return new Promise(promiseHandler);
     }
     else {
       return fs.writeJson(fileName, json, {spaces: 2});

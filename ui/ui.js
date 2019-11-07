@@ -249,9 +249,9 @@ const UI = class {
           params.append('settings', JSON.stringify(settings));
 
           axios.post('persist.php', params).then(() => {
-            let site = this.results.domain;
+            let site = this.results.domain + '.json';
             this.localStorage.removeStorage(site, this);
-            this.getSite(site + '.json');
+            this.getSite(site);
           });
         },
         removeSite(site) {

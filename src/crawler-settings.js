@@ -123,7 +123,7 @@ const CrawlerSettings = class {
    */
   filterUrl(url, context_url) {
     if (!context_url) {
-      context_url = this.startUrl;
+      context_url = this.protocol + '//' + this.hostname;
     }
     url = new URL(url, context_url).href;
     let valid = false;

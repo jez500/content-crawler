@@ -81,10 +81,6 @@ const Crawler = class {
       page = this.db.pages[i];
       result = instance.scoreContent(page.body);
       page.score = result.score;
-
-      if (this.settings.removeEmptyNodes) {
-        page.body = result.content;
-      }
     }
   }
 
@@ -163,13 +159,13 @@ const Crawler = class {
       // 1. Global string replacements on URLs and body text.
       for (i in this.db.pages) {
         page = this.db.pages[i];
+        page.alias = this.generateAlias(page.url);
         valid = true;
         if (!genericTitle) {
           genericTitle = this.db.pages[i].title;
-          genericUrl = this.db.pages[i].url;
+          genericUrl = this.settings.protocol + '//' + this.settings.domain;
         }
 
-        pattern = new RegExp(this.settings.searchString, 'g');
         let replacements = this.settings.searchReplace.split('\n'),
           index = 0,
           replacement = [];
@@ -177,19 +173,25 @@ const Crawler = class {
         for (index = 0; index < replacements.length; index++) {
           replacement = replacements[index].split('|');
 
-          page.body = page.body.split(replacement[0]).join(replacement[1]);
-          page.url = page.url.split(replacement[0]).join(replacement[1]);
+          if (replacement.length > 1) {
+            page.body = page.body.split(replacement[0]).join(replacement[1]);
+            page.url = page.url.split(replacement[0]).join(replacement[1]);
+          }
         }
+        page.alias = this.generateAlias(page.url);
 
         // 2. Clean the URL parameters
         // Trailing slashes removed.
         page.url = page.url.replace(/\/$/g, '');
+        page.alias = this.generateAlias(page.url);
 
         // Query string removed.
         page.url = page.url.replace(/\?.*$/g, '');
+        page.alias = this.generateAlias(page.url);
 
         // Multiple slashes that is not a URL removed.
         page.url = page.url.replace(/([^:])\/\//, '$1/');
+        page.alias = this.generateAlias(page.url);
 
         // 4. Clean nasty redirect scripts from URLs and body text.
         if (this.settings.redirectScript) {
@@ -203,6 +205,7 @@ const Crawler = class {
             return this.decodeEntities(p1);
           });
         }
+        page.alias = this.generateAlias(page.url);
 
         // 5. Kill pages from a 404.
         if (page.title.toLowerCase().includes('page not found') ||
@@ -213,6 +216,7 @@ const Crawler = class {
         // 6. Kill bogus file extensions from webpages and urls.
         let all = this.settings.scriptExtensions.split(','),
           extIndex;
+        page.alias = this.generateAlias(page.url);
 
         for (extIndex in all) {
           if (all[extIndex]) {
@@ -228,9 +232,12 @@ const Crawler = class {
         // 7. Some pages have MULTIPLE h1s (really!?). We will take the last one if it happens.
 
         pattern = /<h1>([^<]*)<\/h1>/g;
-        let matches = page.body.matchAll(pattern);
-        for (let match of matches) {
-          page.title = match[1];
+        // Not in node.
+        if (page.body.matchAll) {
+          let matches = page.body.matchAll(pattern);
+          for (let match of matches) {
+            page.title = match[1];
+          }
         }
 
         // 8. Kill %20 invalid urls.
@@ -338,10 +345,11 @@ const Crawler = class {
       // 15. Generate blank intermediate pages for the menu that are missing.
       this.db.pages = _.values(pages);
 
+      this.scorePages();
+
       this.saveDb();
       this.updateIndex();
 
-      this.scorePages();
       this.log('Crawl complete!', this.db.pages.length + ' pages', this.db.images.length + ' images',
       this.db.documents.length + ' documents', this.db.forms.length + ' forms');
     } else {
@@ -421,6 +429,7 @@ const Crawler = class {
         let response = param;
         let buffer = Buffer.from(response.body);
         let html = buffer.toString();
+
         let scan = $.load(html);
 
         if (this._process) {
@@ -488,7 +497,7 @@ const Crawler = class {
 
     // Handle links.
     this.crawler.addHandler("text", (context) => {
-      this.textHander(context);
+      this.textHandler(context);
     });
 
     // Handle documents.
@@ -571,7 +580,7 @@ const Crawler = class {
       let urlAttributes = ['href', 'src', 'action'];
       for (name in attributes) {
         if (urlAttributes.includes(name)) {
-          let domainUrl = new URL(this.settings.startUrl);
+          let domainUrl = this.settings.startUrl;
           domainUrl = domainUrl.protocol + '//' + domainUrl.hostname;
           let relative = node.attr(name);
           let source = relative;
@@ -608,33 +617,15 @@ const Crawler = class {
   }
 
   /**
-   * Handle text mime types (normal html pages).
+   * Remove listed elements from the cheerio content.
+   *
+   * @param main
    */
-  textHander(context) {
-    // Handler for each page. Add results to db.
-    this.log("Processed", context.url);
-    let all = this.crawler.getUrlList(),
-        total = all._list.length,
-        current = all._nextIndex,
-        progress = Math.floor((current*current) * 100 / (total*total));
-
-    // We squared the components because the list gets longer as we crawl new pages.
-
-    if (this.settings.urlLimit && this.settings.urlCount > this.settings.urlLimit) {
-      this.log('Url limit reached: ' + this.settings.urlLimit);
-      return;
-    }
-    this.log(current + ' complete of ' + total + ' urls ( ' + progress + ' % ).');
-
-    let main = context.$('body');
-
-    if (main.length == 0) {
-      return;
-    }
+  removeElements(main) {
 
     // Strip some common things.
     if (this.settings.simplifyStructure) {
-      let removeList = this.settings.removeElements.split('|'),
+      let removeList = this.settings.removeElements.split(','),
           search,
           index;
 
@@ -644,6 +635,35 @@ const Crawler = class {
         main.find(search).remove();
       }
     }
+  }
+
+  /**
+   * Handle text mime types (normal html pages).
+   */
+  textHandler(context) {
+    // Handler for each page. Add results to db.
+    this.log("Processed", context.url);
+    let all = this.crawler.getUrlList(),
+        total = all._list.length,
+        current = all._nextIndex,
+        progress = Math.floor((current*current) * 100 / (total*total));
+
+    // We squared the components because the list gets longer as we crawl new pages.
+    if (this.settings.urlLimit && this.settings.urlCount > this.settings.urlLimit) {
+      this.log('Url limit reached: ' + this.settings.urlLimit);
+      return;
+    }
+
+    this.log(current + ' complete of ' + total + ' urls ( ' + progress + ' % ).');
+
+    let scan = $.load(context.body);
+    let main = scan('body');
+
+    if (main.length == 0) {
+      return 'Empty document';
+    }
+
+    this.removeElements(main);
 
     // If there is a main region, jump to it.
     let sub = main.find('[role=main], main');
@@ -699,7 +719,7 @@ const Crawler = class {
       let bodyText = $.html(this.extractContent($(imageResult.content)));
 
       let res = {
-        title: context.$('title').text(),
+        title: scan('title').text(),
         url: context.url,
         mediaType: context.contentType,
         contentType: matchingType.type,
@@ -818,7 +838,6 @@ const Crawler = class {
         map = new RegExp('^' + line[0].trim().replace(/\*/g, '.*') + '/?$');
 
         if (map.test(url)) {
-          this.log('Match url pattern: ' + '^' + line[0].trim().replace(/\*/g, '.*') + '/?$');
           type = line[1].trim();
           if (line.length > 2) {
             search = line[2].trim();
