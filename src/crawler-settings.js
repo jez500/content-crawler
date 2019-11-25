@@ -141,7 +141,7 @@ const CrawlerSettings = class {
 
     // If excludeFilter exists, check we don't have it.
     if (this.excludeFilter) {
-      let excluded = this.excludeFilter.split(','),
+      let excluded = this.excludeFilter.split(/,\n/),
           index;
       
       for (index in excluded) {
@@ -166,6 +166,10 @@ const CrawlerSettings = class {
         if (this.shortenUrl) {
           url = this.shortenUrl(url);
         }
+        let clean = new Url(url);
+        clean.hash = '';
+        clean.search = '';
+        url = clean.href;
         // Don't download, just remember it.
         this.imageLinks[url] = {
           url: url,

@@ -451,7 +451,7 @@ const Crawler = class {
         loader.fetchRaw = loader.fetch;
         loader.fetch = function(urlString, options = {}) {
           urlString = proxyUrl + urlString;
-          return this._downloadUrl(urlString, options);
+          return this.fetchRaw(urlString, options);
         }.bind(loader);
 
         let client = new jsdom.JSDOM(html, {
@@ -585,9 +585,6 @@ const Crawler = class {
           let relative = node.attr(name);
           let source = relative;
           relative = relative.replace(new RegExp(domainUrl, 'gi'), '');
-          if (relative != source) {
-            node.attr('data-js-crawler-url', source);
-          }
           node.attr(name, relative);
         }
       }
@@ -917,6 +914,8 @@ const Crawler = class {
         // Relative urls need to be made full.
         let url = new URL(imgUrl, pageUrl);
         let imgOrigin = url.origin;
+        url.search = '';
+        url.hash = '';
         imgUrl = url.href;
 
         // Apply same url filtering to images.
@@ -926,12 +925,7 @@ const Crawler = class {
           if (imgUrl != allow) {
             $(d).attr('src', imgOrigin + '/' + allow.split('/').pop());
             imgUrl = allow;
-          } else {
-            // Query strings for images are likely duplicates.
-            if (imgUrl.includes("?")) {
-              imgUrl = imgUrl.substring(0, imgUrl.indexOf("?"));
-              $(d).attr('src', imgUrl);
-            }
+            $(d).attr('src', imgUrl);
           }
 
           if (this.settings.downloadImages) {
@@ -942,13 +936,6 @@ const Crawler = class {
             this.db.images[imgUrl] = { url: imgUrl, id: imgUrl, proxyUrl: proxyDownload, data: imgUrl};
           }
           images[imgUrl] = { url: imgUrl, id: imgUrl };
-        } else {
-          // Url was filtered but was from the same domain - remove the tag.
-          let hostUrl = new URL(pageUrl);
-          let url = new URL(imgUrl, pageUrl);
-          if (hostUrl.origin == url.origin) {
-            $(d).remove();
-          }
         }
       }
     });

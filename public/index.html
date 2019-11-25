@@ -287,7 +287,7 @@
             </div>
             <md-field>
               <md-button @click="copyJsonToClipboard" class="md-primary">
-                Copy to clipboard
+                Copy
               </md-button>
             </md-field>
           </md-table>
@@ -376,8 +376,8 @@
                 <md-input v-model="urlFilter" type="text"></md-input>
               </md-field>
               <md-field>
-                <label> Do not download urls containing this string </label>
-                <md-input v-model="excludeFilter"></md-input>
+                <label> Do not download urls containing any of these strings </label>
+                <md-textarea v-model="excludeFilter"></md-textarea>
               </md-field>
               <md-field>
                 <label> Do not include this string in page titles</label>
