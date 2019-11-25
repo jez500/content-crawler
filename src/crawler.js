@@ -1,8 +1,10 @@
 const supercrawler = require("supercrawler");
 const extend = require('extend');
 const Storage = require('./storage');
+const moment = require('moment');
 const Duplicates = require('./duplicates');
 const Url = require('url-parse');
+const Buffer = require('buffer').Buffer;
 const _ = require('lodash');
 const $ = require('cheerio');
 const jsdom = require('jsdom');
@@ -26,6 +28,9 @@ const Crawler = class {
     // Remove duplicated content across pages.
     this.elementHashCodes = {};
 
+    // Allow forms to be queued in a process step.
+    this.formQueue = [];
+
     // Get the instance of the storage for this class instance.
     this.storage = new Storage(this.settings.saveDir);
 
@@ -46,6 +51,7 @@ const Crawler = class {
       images: {},
       documents: {},
       forms: {},
+      redirects: [],
     };
 
     // Get an instance of the crawler.
@@ -58,6 +64,13 @@ const Crawler = class {
     this.completeHandler = this.log;
   }
 
+  decodeEntities(src) {
+    let e = document.createElement('textarea');
+    e.innerHTML = src;
+
+    return e.childNodes.length == 0 ? '' : e.childNodes[0].nodeValue;
+  }
+
   scorePages() {
     let i = 0,
         page = {},
@@ -68,10 +81,6 @@ const Crawler = class {
       page = this.db.pages[i];
       result = instance.scoreContent(page.body);
       page.score = result.score;
-
-      if (this.settings.removeEmptyNodes) {
-        page.body = result.content;
-      }
     }
   }
 
@@ -107,26 +116,24 @@ const Crawler = class {
       pages = [];
 
     for (url in links) {
-      if (strlen($url) <= 128) {
-        this.db.images[url] = links[url];
-      } else {
-        this.db.imagesSkipped[url] = links[url];
-      }
+      this.db.images[url] = links[url];
     }
     links = this.settings.getDocumentLinks();
 
     for (url in links) {
       link = links[url];
+      let alias = this.generateAlias(link.url);
       // Link it to the page.
       for (i in this.db.pages) {
         if (this.db.pages[i].url.replace(/#.*/, '') == link.contextUrl) {
-          this.db.pages[i].documents[link.url] = { url: link.url, id: link.url };
+          this.db.pages[i].documents[link.url] = { url: link.url, id: link.url, alias: alias };
+
           break;
         }
       }
 
       // Remove the context url and add it to the global list.
-      this.db.documents[url] = { url: link.url, id: link.url };
+      this.db.documents[url] = { url: link.url, id: link.url, alias: alias };
     }
 
     // Turn assets into arrays.
@@ -152,25 +159,39 @@ const Crawler = class {
       // 1. Global string replacements on URLs and body text.
       for (i in this.db.pages) {
         page = this.db.pages[i];
+        page.alias = this.generateAlias(page.url);
         valid = true;
         if (!genericTitle) {
           genericTitle = this.db.pages[i].title;
-          genericUrl = this.db.pages[i].url;
+          genericUrl = this.settings.protocol + '//' + this.settings.domain;
         }
 
-        pattern = new RegExp(this.settings.searchString, 'g');
-        page.body = page.body.replace(pattern, this.settings.replaceString);
-        page.url = page.url.replace(pattern, this.settings.replaceString);
+        let replacements = this.settings.searchReplace.split('\n'),
+          index = 0,
+          replacement = [];
+
+        for (index = 0; index < replacements.length; index++) {
+          replacement = replacements[index].split('|');
+
+          if (replacement.length > 1) {
+            page.body = page.body.split(replacement[0]).join(replacement[1]);
+            page.url = page.url.split(replacement[0]).join(replacement[1]);
+          }
+        }
+        page.alias = this.generateAlias(page.url);
 
         // 2. Clean the URL parameters
         // Trailing slashes removed.
         page.url = page.url.replace(/\/$/g, '');
+        page.alias = this.generateAlias(page.url);
 
         // Query string removed.
         page.url = page.url.replace(/\?.*$/g, '');
+        page.alias = this.generateAlias(page.url);
 
         // Multiple slashes that is not a URL removed.
         page.url = page.url.replace(/([^:])\/\//, '$1/');
+        page.alias = this.generateAlias(page.url);
 
         // 4. Clean nasty redirect scripts from URLs and body text.
         if (this.settings.redirectScript) {
@@ -181,9 +202,10 @@ const Crawler = class {
           }
           // Replace redirect links in the body.
           page.body = page.body.replace(pattern, function(match, p1) {
-            return decodeURIComponent(p1);
+            return this.decodeEntities(p1);
           });
         }
+        page.alias = this.generateAlias(page.url);
 
         // 5. Kill pages from a 404.
         if (page.title.toLowerCase().includes('page not found') ||
@@ -194,6 +216,7 @@ const Crawler = class {
         // 6. Kill bogus file extensions from webpages and urls.
         let all = this.settings.scriptExtensions.split(','),
           extIndex;
+        page.alias = this.generateAlias(page.url);
 
         for (extIndex in all) {
           if (all[extIndex]) {
@@ -209,13 +232,16 @@ const Crawler = class {
         // 7. Some pages have MULTIPLE h1s (really!?). We will take the last one if it happens.
 
         pattern = /<h1>([^<]*)<\/h1>/g;
-        let matches = page.body.matchAll(pattern);
-        for (let match of matches) {
-          page.title = match[1];
+        // Not in node.
+        if (page.body.matchAll) {
+          let matches = page.body.matchAll(pattern);
+          for (let match of matches) {
+            page.title = match[1];
+          }
         }
 
         // 8. Kill %20 invalid urls.
-        page.alias = decodeURIComponent(page.alias);
+        page.alias = this.decodeEntities(page.alias);
 
         // 10. Generate Parents for the menu.
 
@@ -231,8 +257,11 @@ const Crawler = class {
         page.parent = parentPage.join('/');
 
         // 11. For pages with a generic title, make a new one from the alias.
-        if (page.title == genericTitle) {
+        if (page.title == genericTitle && i > 0) {
           page.title = this.sanitiseTitle(page.alias);
+        }
+        if (this.settings.excludeTitleString) {
+          page.title = page.title.replace(new RegExp(this.settings.excludeTitleString, 'gi'), '');
         }
 
         // 12. For listing pages, keep the first page content but add a comment.
@@ -242,7 +271,11 @@ const Crawler = class {
         }
 
         // 13. Decode entities in titles.
-        page.title = decodeURIComponent(page.title);
+        page.title = this.decodeEntities(page.title);
+
+        // 14. Remove titles from the body content.
+        pattern = /<h1>([^<]*)<\/h1>/g;
+        page.body = page.body.replace(pattern, '');
 
         // All pages must have a title.
         if (page.title.trim() == '') {
@@ -251,7 +284,23 @@ const Crawler = class {
 
         if (valid) {
           // No duplicate aliases.
-          pages[page.alias] = page;
+
+          let j = 0;
+          for (j = 0; j < i; j++) {
+            // Non empty text that duplicates an existing page.
+            if (this.db.pages[j].body == this.db.pages[i].body && this.db.pages[j].body.length > 256) {
+              this.db.redirects.push({
+                from: this.db.pages[i].alias.substr(1),
+                to: 'internal:' + this.db.pages[j].alias
+              });
+              valid = false;
+              j = i;
+            }
+          }
+
+          if (valid) {
+            pages[page.alias] = page;
+          }
         }
       }
 
@@ -279,7 +328,8 @@ const Crawler = class {
             newpage.forms = [];
             newpage.body = '';
             newpage.mediaType = 'text/html';
-            newpage.contentType = 'page';
+            newpage.contentType = 'govcms_standard_page';
+            newpage.fields = [];
             let parentPage = page.parent.split('/');
             let title = parentPage.pop();
             newpage.parent = parentPage.join('/');
@@ -295,10 +345,11 @@ const Crawler = class {
       // 15. Generate blank intermediate pages for the menu that are missing.
       this.db.pages = _.values(pages);
 
+      this.scorePages();
+
       this.saveDb();
       this.updateIndex();
 
-      this.scorePages();
       this.log('Crawl complete!', this.db.pages.length + ' pages', this.db.images.length + ' images',
       this.db.documents.length + ' documents', this.db.forms.length + ' forms');
     } else {
@@ -325,6 +376,7 @@ const Crawler = class {
    */
   getCrawler() {
     let agent = "Mozilla/5.0 (compatible; supercrawler/1.0; +https://github.com/brendonboshell/supercrawler)";
+    let self = this;
 
     // Create an instance using as many of our settings as possible.
     let instance = new supercrawler.Crawler({
@@ -336,27 +388,62 @@ const Crawler = class {
         gzip: false  // Disable gzip compression because it's unreliable in the web version.
       }
     });
-
+    instance.dynamicForms = [];
     // Patch the downloader to allow CORS requests using a proxy.
     instance._proxyUrl = this.settings.proxy;
     instance._runScripts = this.settings.runScripts;
+    instance._process = this.settings.process;
 
     // We are monkey patching the download function.
     instance._downloadUrlRaw = instance._downloadUrl;
     instance._downloadUrl = function(url, followRedirect) {
+      self.log('Download URL Raw: ' + url);
+      if (!self.settings.filterUrl(url)) {
+        throw new Error('URL is filtered:' + url);
+      }
+
+      self.settings.urlCount++;
+
+      if (self.settings.urlLimit > 0 && (self.settings.urlCount > self.settings.urlLimit)) {
+        let err = 'URL limit reached: ' + self.settings.urlCount;
+        // Stop crawling.
+        instance._urlList._nextIndex = instance._urlList._list.length;
+        instance.emit("urllistcomplete");
+
+        throw new Error(err);
+      }
+
+      if (this.dynamicForms[url]) {
+        this._request = {
+          method: 'POST',
+          form: this.dynamicForms[url]
+        };
+      } else {
+        this._request = {};
+      }
+
       let raw = this._downloadUrlRaw(this._proxyUrl + url, followRedirect);
       let pageUrl = url;
 
       return raw.then(function (param) {
+        let response = param;
+        let buffer = Buffer.from(response.body);
+        let html = buffer.toString();
+
+        let scan = $.load(html);
+
+        if (this._process) {
+          /*jshint -W054 */
+          let invoke = new Function('query', 'pageUrl', 'supercrawler', 'crawler', this._process).bind(this);
+          invoke(scan, pageUrl, supercrawler, self);
+        }
+
         if (!this._runScripts) {
           return param;
         }
         // What we are doing here is running the javascript in a virtual DOM
         // after loading the page. This allows content to be updated by js
         // before we look at it.
-        let response = param;
-        let buffer = Buffer.from(response.body);
-        let html = buffer.toString();
         let loader = new jsdom.ResourceLoader();
         let proxyUrl = this._proxyUrl;
 
@@ -389,7 +476,7 @@ const Crawler = class {
     instance.on('crawledurl', (url, errorCode, statusCode) => {
       // Report failed downloads.
       if (errorCode) {
-        this.log('Error fetching URL: ' + url + ' => ' + errorCode);
+        self.log('Error fetching URL: ' + url + ' => ' + errorCode);
       }
     });
 
@@ -410,11 +497,12 @@ const Crawler = class {
 
     // Handle links.
     this.crawler.addHandler("text", (context) => {
-      this.textHander(context);
+      this.textHandler(context);
     });
 
     // Handle documents.
     this.crawler.addHandler("application", (context) => {
+      this.log("Document retrieved: " + context.url);
       this.applicationHandler(context);
     });
 
@@ -450,7 +538,7 @@ const Crawler = class {
     let valid = [
       'img', 'input', 'select', 'textarea',
       'button', 'canvas', 'map', 'svg', 'picture', 'source',
-      'time', 'video', 'object', 'audio',
+      'time', 'video', 'object', 'audio', 'a'
     ];
 
     if (this.settings.removeEmptyNodes &&
@@ -478,7 +566,7 @@ const Crawler = class {
           'href', 'src', 'alt', 'role', 'name', 'value',
           'type', 'title', 'width', 'height', 'rows', 'cols',
           'size', 'for', 'method', 'action', 'placeholder',
-          'colspan', 'rowspan'
+          'colspan', 'rowspan', 'id'
         ];
 
         for (name in attributes) {
@@ -492,14 +580,11 @@ const Crawler = class {
       let urlAttributes = ['href', 'src', 'action'];
       for (name in attributes) {
         if (urlAttributes.includes(name)) {
-          let domainUrl = new URL(this.settings.startUrl);
+          let domainUrl = this.settings.startUrl;
           domainUrl = domainUrl.protocol + '//' + domainUrl.hostname;
           let relative = node.attr(name);
           let source = relative;
           relative = relative.replace(new RegExp(domainUrl, 'gi'), '');
-          if (relative != source) {
-            node.attr('data-js-crawler-url', source);
-          }
           node.attr(name, relative);
         }
       }
@@ -529,26 +614,15 @@ const Crawler = class {
   }
 
   /**
-   * Handle text mime types (normal html pages).
+   * Remove listed elements from the cheerio content.
+   *
+   * @param main
    */
-  textHander(context) {
-    // Handler for each page. Add results to db.
-    this.log("Processed", context.url);
-    let all = this.crawler.getUrlList(),
-        total = all._list.length,
-        current = all._nextIndex,
-        progress = Math.floor(current * 100 / total);
-    this.log(current + ' complete of ' + total + ' urls ( ' + progress + ' % ).');
-
-    let main = context.$('body');
-
-    if (main.length == 0) {
-      return;
-    }
+  removeElements(main) {
 
     // Strip some common things.
     if (this.settings.simplifyStructure) {
-      let removeList = this.settings.removeElements.split('|'),
+      let removeList = this.settings.removeElements.split(','),
           search,
           index;
 
@@ -558,6 +632,35 @@ const Crawler = class {
         main.find(search).remove();
       }
     }
+  }
+
+  /**
+   * Handle text mime types (normal html pages).
+   */
+  textHandler(context) {
+    // Handler for each page. Add results to db.
+    this.log("Processed", context.url);
+    let all = this.crawler.getUrlList(),
+        total = all._list.length,
+        current = all._nextIndex,
+        progress = Math.floor((current*current) * 100 / (total*total));
+
+    // We squared the components because the list gets longer as we crawl new pages.
+    if (this.settings.urlLimit && this.settings.urlCount > this.settings.urlLimit) {
+      this.log('Url limit reached: ' + this.settings.urlLimit);
+      return;
+    }
+
+    this.log(current + ' complete of ' + total + ' urls ( ' + progress + ' % ).');
+
+    let scan = $.load(context.body);
+    let main = scan('body');
+
+    if (main.length == 0) {
+      return 'Empty document';
+    }
+
+    this.removeElements(main);
 
     // If there is a main region, jump to it.
     let sub = main.find('[role=main], main');
@@ -593,6 +696,7 @@ const Crawler = class {
           matchingType = contentType;
           break;
         }
+
         // The url matched, but there were no matching dom elements.
       } else {
         matchingType = contentType;
@@ -600,22 +704,87 @@ const Crawler = class {
         break;
       }
     }
+    if (!matchingType) {
+      matchingType = contentType;
+    }
 
     articles.each(function(contentCount, article) {
-      let mainText = $.html(this.extractContent($(article)));
+      let mainText = $.html($(article));
+      let forms = this.getForms(mainText, context.url);
+      let imageResult = this.getImages(mainText, context.url);
+      let images = imageResult.images;
+      let bodyText = $.html(this.extractContent($(imageResult.content)));
+
       let res = {
-        title: context.$('title').text(),
+        title: scan('title').text(),
         url: context.url,
         mediaType: context.contentType,
-        contentType: contentType.type,
+        contentType: matchingType.type,
         size: Math.round((Buffer.byteLength(context.body) / 1024)),
-        forms: this.getForms(mainText, context.url),
-        images: this.getImages(mainText, context.url),
-        body: mainText,
+        forms: forms,
+        images: images,
+        body: bodyText,
         search: '',
         score: 0,
-        documents: {},
+        documents: {}
       };
+
+      // Loop over custom fields for this contentType and extract them.
+      matchingType.fields.forEach(function(field) {
+        let all = $.load(mainText),
+          start = null,
+          valueText = '',
+          matches = null,
+          container = $.load(''),
+          end = null;
+
+        if (field.start == '[parent]') {
+          let alias = this.decodeEntities(this.generateAlias(res.url)).replace(/\/$/g, '');
+          let parents = alias.split('/');
+          if (parents.length > 1) {
+            // Skip current page.
+            parents.pop();
+
+            valueText = this.sanitiseTitle(parents.pop());
+          }
+        } else {
+          start = all(field.start);
+          end = start;
+          if (field.end) {
+            matches = start.nextUntil(field.end);
+            matches.each(function(index, node) {
+              if (field.field.includes('end')) {
+                // Only look at the last matching field.
+                end = $(node);
+              }
+              container('body').append($(node).clone());
+            });
+            valueText = container('body').html();
+          } else {
+            valueText = start.text();
+          }
+        }
+
+        let fieldName = 'field_' + field.field.trim();
+        let fieldValue = valueText.trim();
+
+        if (field.dateformat) {
+          if (field.field.includes('end')) {
+            fieldValue = end.text();
+          } else {
+            fieldValue = start.text();
+          }
+          let parser = moment(fieldValue, field.dateformat);
+          if (parser.isValid()) {
+            fieldValue = parser.format(moment.HTML5_FMT.DATETIME_LOCAL) + ':00';
+          } else {
+            fieldValue = '';
+          }
+        }
+
+        res[fieldName] = fieldValue;
+        this.log('Field: ' + fieldName + ' => ' + fieldValue);
+      }.bind(this));
       let heading = $('h1', mainText).first().text();
       if (heading) {
         res.title = heading;
@@ -631,8 +800,6 @@ const Crawler = class {
         if (title) {
           title = title.trim();
           res.title = title;
-        } else {
-          res.title += ' (' + contentType.type + ', ' + contentCount + ')';
         }
       }
       // Turn images into array.
@@ -668,21 +835,35 @@ const Crawler = class {
         map = new RegExp('^' + line[0].trim().replace(/\*/g, '.*') + '/?$');
 
         if (map.test(url)) {
-          this.log('Match url pattern: ' + '^' + line[0].trim().replace(/\*/g, '.*') + '/?$');
           type = line[1].trim();
           if (line.length > 2) {
             search = line[2].trim();
           }
+
+          let fields = [], i = 0;
+
+          // Extract fields for this content type.
+          for (i = 3; (i + 3) < line.length; i += 4) {
+            fields.push({
+              start: line[i],
+              end: line[i+1],
+              field: line[i+2],
+              dateformat: line[i+3]
+            });
+          }
+
           // Dont return, we want a list of all possible matches.
           valid.push({
             search: search,
-            type: type
+            type: type,
+            fields: fields
           });
         }
       }
     }
-    // Fallback - always included it last.
-    valid.push({ search: '', type: 'page' });
+    // Fallback - always include it last.
+    valid.push({ search: '', type: 'govcms_standard_page', fields: [] });
+
     return valid;
   }
 
@@ -700,13 +881,15 @@ const Crawler = class {
    *
    * @param {Object} context
    * @param {String} pageUrl
-   * @return {Array}
-   *   - An array with the urls as keys and metadata as values.
+   * @return {Object}
+   *   - An object with the urls as an array named 'images' and the modified source text as 'content'
    */
   getImages(context, pageUrl) {
     let images = {}, count = 0, dataUrl = 0;
+    let source = $.load(context);
+    let tags = source('img');
 
-    $('img', context).each((i, d) => {
+    tags.each((i, d) => {
       let imgUrl = $(d).attr('src');
 
       if (!imgUrl) {
@@ -729,25 +912,40 @@ const Crawler = class {
       }
       else {
         // Relative urls need to be made full.
-        imgUrl = (new URL(imgUrl, pageUrl)).href;
-
-        // Query strings for images are likely duplicates.
-        imgUrl.substring(imgUrl.indexOf("?") + 1);
+        let url = new URL(imgUrl, pageUrl);
+        let imgOrigin = url.origin;
+        url.search = '';
+        url.hash = '';
+        imgUrl = url.href;
 
         // Apply same url filtering to images.
         let allow = this.settings.filterUrl(imgUrl, null);
 
-        if (this.settings.downloadImages) {
-          // Queue it.
-          this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
-        } else {
-          let proxyDownload = this.settings.proxy + imgUrl;
-          this.db.images[imgUrl] = { url: imgUrl, id: imgUrl, proxyUrl: proxyDownload, data: imgUrl};
+        if (allow) {
+          if (imgUrl != allow) {
+            $(d).attr('src', imgOrigin + '/' + allow.split('/').pop());
+            imgUrl = allow;
+            $(d).attr('src', imgUrl);
+          }
+
+          if (this.settings.downloadImages) {
+            // Queue it.
+            this.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(imgUrl));
+          } else {
+            let proxyDownload = this.settings.proxy + imgUrl;
+            this.db.images[imgUrl] = { url: imgUrl, id: imgUrl, proxyUrl: proxyDownload, data: imgUrl};
+          }
+          images[imgUrl] = { url: imgUrl, id: imgUrl };
         }
-        images[imgUrl] = { url: imgUrl, id: imgUrl };
       }
     });
-    return images;
+
+    context = source.html();
+
+    return {
+      images: images,
+      content: context
+    };
   }
 
   /**
@@ -757,6 +955,12 @@ const Crawler = class {
    */
   getForms(context, pageUrl) {
     let forms = {};
+    if (this.formQueue) {
+      forms = this.formQueue;
+      Object.assign(this.db.forms, forms);
+      this.formQueue = [];
+      return _.values(forms);
+    }
     $('form', context).each((count, d) => {
       let actionUrl = (new URL($(d).attr('action'), pageUrl)).href,
         id = $(d).attr('id');
@@ -793,6 +997,7 @@ const Crawler = class {
       })
       .catch(err => { this.log(err); });
 
+    this.settings.shortenUrl = false;
     fileName = this.settings.saveDir + '/settings-' + this.settings.domain + '.json';
     this.storage.writeJson(fileName, this.settings)
       .then(() => { this.log('Settings updated'); })
@@ -842,8 +1047,13 @@ const Crawler = class {
    */
   generateAlias(url) {
     let fullUrl = new URL(url);
+    let path = fullUrl.pathname;
 
-    return fullUrl.pathname;
+    if (path.length > 220) {
+      path = path.substr(0, 220) + '...';
+    }
+
+    return path;
   }
 
   /**

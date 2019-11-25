@@ -1,6 +1,8 @@
 const expect = require('expect.js');
 const Crawler = require('../src/crawler');
 const $ = require('cheerio');
+const fs = require('fs');
+const supercrawler = require("supercrawler");
 
 describe('Crawler', function() {
   it('Constructor should create an instance', function() {
@@ -66,12 +68,12 @@ describe('Crawler', function() {
     let context = {
       url: 'http://localhost/',
       body: source,
-      contentType: 'text/html'
+      contentType: 'text/html',
     };
 
-    let images = instance.getImages(source);
+    let images = instance.getImages(source, 'http://localhost');
 
-    expect(images['http://localhost/img'].url).to.contain('localhost');
+    expect(images.images['http://localhost/img'].url).to.contain('localhost');
   });
 
   it('content type mapping with wildcards should be correct', function() {
@@ -91,8 +93,43 @@ describe('Crawler', function() {
 
     expect(instance.mapContentType('http://other.com/')[0].type).to.be('other');
     expect(instance.mapContentType('http://example.com/2/something')[0].type).to.be('other2');
-    expect(instance.mapContentType('http://another.com/')[0].type).to.be('page');
+    expect(instance.mapContentType('http://another.com/')[0].type).to.be('govcms_standard_page');
     expect(instance.mapContentType('http://example.com/')[0].type).to.be('example');
     expect(instance.mapContentType('http://example.com/')[0].search).to.be('article');
+  });
+
+  it('extractContent should be consistent', function() {
+    let settings = {
+      saveDir: 'test',
+      authKey: 'test',
+      downloadImages: false,
+      runScripts: false,
+      robots: false,
+      removeElements: 'nav, aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object, .event-image-container .AddToCalendar, .col-small, .feedback-box,.div-feedback-header , .feedback-form-container',
+      removeEmptyNodes: true,
+      searchReplace: '',
+      removeAttributes: true,
+      trimWhitespace: true,
+      simplifyStructure: true,
+      removeDuplicates: true,
+    };
+    let instance = new Crawler('http://localhost/', settings);
+
+    let source = fs.readFileSync('test/source.html', 'utf8');
+
+    let context = {
+      url: 'http://localhost/',
+      body: source,
+      contentType: 'text/html',
+    };
+    instance.crawler.getUrlList().insertIfNotExists(new supercrawler.Url(context.url));
+
+    q = instance.textHandler(context);
+    q = instance.crawlComplete();
+
+    let content = instance.db.pages.pop().body;
+
+    expect(content).not.to.contain('Do you want to do more online?');
+    expect(content).to.contain('Freedom of Information  - Application Form');
   });
 });

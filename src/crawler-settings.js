@@ -43,6 +43,7 @@ const CrawlerSettings = class {
 
     // Merge the default settings with those passed to the constructor.
     Object.assign(this, settings);
+    this.interval = 1000 * this.delay;
 
     // Verify there is a valid auth key.
     if (!this.authKey) {
@@ -62,7 +63,6 @@ const CrawlerSettings = class {
     let usage = "\n\n  Valid arguments are:\n\n",
         key = '',
         exclude = ['domain', 'protocol', 'proxy', 'imageLinks'];
-
 
     Object.keys(this).forEach(key => {
       if (!exclude.includes(key)) {
@@ -88,9 +88,11 @@ const CrawlerSettings = class {
     this.saveDir = './public/sites';
     this.urlFilter = '';
     this.excludeFilter = '';
+    this.excludeTitleString = '';
     this.delay = 5;
-    this.searchString = '';
-    this.replaceString = '';
+    this.urlLimit = 0;
+    this.urlCount = 0;
+    this.searchReplace = '';
     this.redirectScript = '';
     this.scriptExtensions = '';
     this.proxy = '';
@@ -103,11 +105,13 @@ const CrawlerSettings = class {
     this.removeDuplicates = true;
     this.contentMapping = '';
     this.removeElements = 'nav, [role=navigation], aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object';
+    this.process = '';
     this.robots = true;
     this.authKey = '';
     this.imageLinks = [];
     this.documentLinks = [];
     this.interval = 1000 * this.delay;
+    this.shortenUrl = false;
   }
 
   /**
@@ -119,16 +123,25 @@ const CrawlerSettings = class {
    */
   filterUrl(url, context_url) {
     if (!context_url) {
-      context_url = this.startUrl;
+      context_url = this.protocol + '//' + this.hostname;
     }
     url = new URL(url, context_url).href;
+    let valid = false;
 
-    // If urlFilter settings exists, check url contains it.
-    let valid = !(this.urlFilter && url.indexOf(this.urlFilter) === -1);
+    // If urlFilter settings exists, check url contains any.
+    if (this.urlFilter) {
+      let filters = this.urlFilter.split('|');
+      let index = 0;
+      for (index = 0; index < filters.length; index++) {
+        valid = valid || (url.indexOf(filters[index]) !== -1);
+      }
+    } else {
+      valid = true;
+    }
 
     // If excludeFilter exists, check we don't have it.
     if (this.excludeFilter) {
-      let excluded = this.excludeFilter.split(','),
+      let excluded = this.excludeFilter.split(/,\n/),
           index;
       
       for (index in excluded) {
@@ -137,15 +150,26 @@ const CrawlerSettings = class {
     }
 
     // Does this string end with any of the array elements?
-    let endsWith = function(suffix) {
-      return this.endsWith(suffix);
+    let includes = function(suffix) {
+      return this.includes(suffix);
     }.bind(url);
+
+    if (this.urlLimit && this.urlCount > this.urlLimit) {
+      valid = false;
+    }
 
     let imageSuffixes = ['.jpg', '.jpeg', '.png', '.svg', '.bmp', '.gif'];
 
-    if (imageSuffixes.some(endsWith)) {
+    if (imageSuffixes.some(includes)) {
       // We just want images from the same domain.
       if ((new Url(url)).hostname == (new URL(this.startUrl)).hostname) {
+        if (this.shortenUrl) {
+          url = this.shortenUrl(url);
+        }
+        let clean = new Url(url);
+        clean.hash = '';
+        clean.search = '';
+        url = clean.href;
         // Don't download, just remember it.
         this.imageLinks[url] = {
           url: url,
@@ -153,26 +177,35 @@ const CrawlerSettings = class {
           id: url,
         };
       }
+      valid = false;
     }
     if (valid) {
       let documentSuffixes = ['.doc', '.docx', '.dot', '.pdf', '.xls', '.xlsx', '.ps', '.eps', '.rtf', '.ppt', '.pptx', '.odt'];
 
-      if (documentSuffixes.some(endsWith)) {
+      if (documentSuffixes.some(includes)) {
         // We just want documents from the same domain.
-        console.log('Compare document hosts');
-        console.log(url, this.startUrl);
         if ((new Url(url)).hostname == (new URL(this.startUrl)).hostname) {
           // Don't download, just remember it.
+          if (this.shortenUrl) {
+            url = this.shortenUrl(url);
+          }
           this.documentLinks[url] = {
             url: url,
             contextUrl: context_url,
             id: url,
           };
         }
+        valid = false;
       }
     }
 
-    return valid;
+    if (valid) {
+      if (this.shortenUrl) {
+        url = this.shortenUrl(url);
+      }
+      return url;
+    }
+    return false;
   }
 
   /**

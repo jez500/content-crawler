@@ -31,6 +31,7 @@ describe('CrawlerSettings', function() {
       authKey: 'test',
       urlFilter: 'http://example.org/',
       excludeFilter: 'no-thanks,another',
+      excludeTitleString: 'Cats Website -',
       downloadImages: true,
     };
     let instance = new CrawlerSettings('http://localhost/', settings);
@@ -41,7 +42,8 @@ describe('CrawlerSettings', function() {
     expect(instance.filterUrl('http://example.edu/no-thanks/more')).not.to.be.ok();
     expect(instance.filterUrl('http://another.com/')).not.to.be.ok();
     expect(instance.filterUrl('/image.png')).not.to.be.ok();
-    expect(instance.filterUrl('/image.png', 'http://example.org')).to.be.ok();
+    // Images are not downloaded during a crawl.
+    expect(instance.filterUrl('/image.png', 'http://example.org')).not.to.be.ok();
   });
 
 
