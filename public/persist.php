@@ -174,8 +174,8 @@ function perform_request_add($args, $indexJson) {
 function parse_request_remove() {
   $params = [];
 
-  $params['authKey'] = $_POST['authKey'];
-  $params['remove'] = $_POST['remove'];
+  $params['authKey'] = isset($_POST['authKey']) ? $_POST['authKey'] : '';
+  $params['remove'] = isset($_POST['remove']) ? $_POST['remove'] : '';
 
   // Sanitise params.
   $params['authKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['authKey']);
@@ -308,11 +308,11 @@ function perform_request_new_client($args) {
  */
 function parse_request_new_client() {
   $params = [];
-  $params['firstName'] = $_POST['firstName'];
-  $params['lastName'] = $_POST['lastName'];
-  $params['company'] = $_POST['company'];
-  $params['email'] = $_POST['email'];
-  $params['phone'] = $_POST['phone'];
+  $params['firstName'] = isset($_POST['firstName']) ? $_POST['firstName'] : '';
+  $params['lastName'] = isset($_POST['lastName']) ? $_POST['lastName'] : '';
+  $params['company'] = isset($_POST['company']) ? $_POST['company'] : '';
+  $params['email'] = isset($_POST['email']) ? $_POST['email'] : '';
+  $params['phone'] = isset($_POST['phone']) ? $_POST['phone'] : '';
 
   foreach ($params as $key => $value) {
     if (!$value) {
@@ -329,7 +329,7 @@ function parse_request_new_client() {
  */
 function parse_request_verify() {
   $params = [];
-  $params['authKey'] = obfuscate($_GET['authKey']);
+  $params['authKey'] = obfuscate(isset($_GET['authKey']) ? $_GET['authKey'] : '');
 
   foreach ($params as $key => $value) {
     if (!$value) {
@@ -347,8 +347,8 @@ function parse_request_verify() {
 function parse_request_remove_client() {
   $params = [];
 
-  $params['authKey'] = $_POST['authKey'];
-  $params['key'] = $_POST['key'];
+  $params['authKey'] = isset($_POST['authKey']) ? $_POST['authKey'] : '';
+  $params['key'] = isset($_POST['key']) ? $_POST['key'] : '';
 
   // Sanitise params.
   $params['authKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['authKey']);
@@ -370,8 +370,8 @@ function parse_request_remove_client() {
 function parse_request_add_client() {
   $params = [];
 
-  $params['authKey'] = $_POST['authKey'];
-  $params['key'] = $_POST['key'];
+  $params['authKey'] = isset($_POST['authKey']) ? $_POST['authKey'] : '';
+  $params['key'] = isset($_POST['key']) ? $_POST['key'] : '';
 
   // Sanitise params.
   $params['authKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['authKey']);
@@ -393,9 +393,9 @@ function parse_request_add_client() {
 function parse_request_save_notes() {
   $params = [];
 
-  $params['authKey'] = $_POST['authKey'];
-  $params['notes'] = $_POST['notes'];
-  $params['clientKey'] = $_POST['clientKey'];
+  $params['authKey'] = isset($_POST['authKey']) ? $_POST['authKey'] : '';
+  $params['notes'] = isset($_POST['notes']) ? $_POST['notes'] : '';
+  $params['clientKey'] = isset($_POST['clientKey']) ? $_POST['clientKey'] : '';
 
   // Sanitise params.
   $params['authKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['authKey']);
@@ -417,11 +417,11 @@ function parse_request_save_notes() {
 function parse_request_add() {
   $params = [];
 
-  $params['authKey'] = $_POST['authKey'];
-  $params['domain'] = $_POST['domain'];
-  $params['title'] = $_POST['title'];
-  $params['json'] = $_POST['json'];
-  $params['settings'] = $_POST['settings'];
+  $params['authKey'] = isset($_POST['authKey']) ? $_POST['authKey'] : '';
+  $params['domain'] = isset($_POST['domain']) ? $_POST['domain'] : '';
+  $params['title'] = isset($_POST['title']) ? $_POST['title'] : '';
+  $params['json'] = isset($_POST['json']) ? $_POST['json'] : '';
+  $params['settings'] = isset($_POST['settings']) ? $_POST['settings'] : '';
   $params['raw'] = json_decode($params['json']);
 
   // Sanitise params.
@@ -445,7 +445,7 @@ function parse_request_add() {
 function parse_request_list() {
   $params = [];
 
-  $params['authKey'] = $_POST['authKey'];
+  $params['authKey'] = isset($_POST['authKey']) ? $_POST['authKey'] : '';
   // Sanitise params.
   $params['authKey'] = preg_replace('/[^A-Za-z0-9\-]/', '', $params['authKey']);
 
