@@ -65,10 +65,7 @@ const Crawler = class {
   }
 
   decodeEntities(src) {
-    let e = document.createElement('textarea');
-    e.innerHTML = src;
-
-    return e.childNodes.length == 0 ? '' : e.childNodes[0].nodeValue;
+    return _.unescape(src);
   }
 
   scorePages() {
