@@ -141,9 +141,8 @@ const CrawlerSettings = class {
 
     // If excludeFilter exists, check we don't have it.
     if (this.excludeFilter) {
-      let excluded = this.excludeFilter.split(/,\n/),
+      let excluded = this.excludeFilter.split(/[,\n]/),
           index;
-      
       for (index in excluded) {
         valid = valid && (url.indexOf(excluded[index]) === -1);
       }
