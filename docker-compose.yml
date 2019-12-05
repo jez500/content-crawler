@@ -1,0 +1,13 @@
+version: "3.1"
+
+services:
+
+  lamp:
+    build: ./docker-env
+    ports:
+      - "28880:80"
+      - "23306:3306"
+    expose:
+      - "28880"
+    volumes:
+      - .:/app
