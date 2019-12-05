@@ -9,7 +9,7 @@ if (!file_exists('urls.json')) {
 
 $all = json_decode(file_get_contents('urls.json'));
 
-$token = isset($_GET['token'])?$_GET['token']:'';
+$token = isset($_GET['token']) ? $_GET['token'] : '';
 
 if ($token) {
   if (isset($all->$token)) {
@@ -22,8 +22,8 @@ if ($token) {
     http_response_code(404);
   }
 } else {
-  $url = $_POST['url'];
-  $token = $_POST['token'];
+  $url = isset($_POST['url']) ? $_POST['url'] : '';
+  $token = isset($_POST['token']) ? $_POST['token'] : '';
   if ($url) {
     $all->$token = $url;
     file_put_contents('urls.json', json_encode($all, JSON_PRETTY_PRINT));
