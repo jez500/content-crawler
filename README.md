@@ -15,6 +15,24 @@ Run `npm run build` to build the site. This includes all the node packages in a 
 
 Run `npm run test` to run javascript tests with "Mocha" against the site.
 
+## Creating a 'company'
+
+* `mkidr -p public/sites`
+* `touch public/sites/MY_CODE-index.json`
+* `touch public/sites/MY_CODE-index.json.master`
+* `touch public/sites/MY_CODE-info.json`
+* `nano public/sites/MY_CODE-info.json` and the following json (update values):
+```
+{"firstName":"first","lastName":"last","company":"company","email":"noreply@example.com","phone":"0123456789","clientid":"client","key":"MY_CODE"}
+```
+
+## Docker environment
+
+A docker environment is available, see `docker-env/Dockerfile` for what is used. To build the environment run `docker-compose build` 
+(required if any changes are made to the Dockerfile). To start the environment run `docker-compose up -d` to stop the environment run
+`docker-compose down`. The application is exposed via port `28880` as defined in the `docker-compose.yml` meaning you can access the
+app via `http://localhost:28880`.  
+
 ## Starting a crawl
 
 Run `npm run crawl FULL_URL_OF_SITE_TO_CRAWL -- --authKey CLIENT_SECRET_KEY` replacing `FULL_URL_OF_SITE_TO_CRAWL` with the start url of the site
@@ -30,10 +48,11 @@ https://github.com/Rob--W/cors-anywhere
 
 To run it from the command line:
 
+```
 export CORSANYWHERE_RATELIMIT="30 1"
 export HOST=192.168.88.88
-
 node server.js
+```
 
 (Change the rate limit values and server IP as needed).
 
