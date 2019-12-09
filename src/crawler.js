@@ -552,7 +552,7 @@ const Crawler = class {
     } else {
       // Remove whitespace overload.
       if (node[0].type == 'text' && this.settings.trimWhitespace) {
-        node.text(node[0].data.replace(/\s+/g, ' '));
+        node[0].data = node[0].data.replace(/\s+/g, ' ');
       }
       // Remove attributes from most tags.
       let attributes = node[0].attribs;
