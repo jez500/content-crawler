@@ -112,6 +112,7 @@ const CrawlerSettings = class {
     this.documentLinks = [];
     this.interval = 1000 * this.delay;
     this.shortenUrl = false;
+    this.defaultContentType = 'page';
   }
 
   /**

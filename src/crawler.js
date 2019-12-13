@@ -325,7 +325,7 @@ const Crawler = class {
             newpage.forms = [];
             newpage.body = '';
             newpage.mediaType = 'text/html';
-            newpage.contentType = 'govcms_standard_page';
+            newpage.contentType = this.settings.defaultContentType;
             newpage.fields = [];
             let parentPage = page.parent.split('/');
             let title = parentPage.pop();
@@ -552,7 +552,7 @@ const Crawler = class {
     } else {
       // Remove whitespace overload.
       if (node[0].type == 'text' && this.settings.trimWhitespace) {
-        node.text(node[0].data.replace(/\s+/g, ' '));
+        node[0].data = node[0].data.replace(/\s+/g, ' ');
       }
       // Remove attributes from most tags.
       let attributes = node[0].attribs;
@@ -859,7 +859,7 @@ const Crawler = class {
       }
     }
     // Fallback - always include it last.
-    valid.push({ search: '', type: 'govcms_standard_page', fields: [] });
+    valid.push({ search: '', type: this.settings.defaultContentType, fields: [] });
 
     return valid;
   }

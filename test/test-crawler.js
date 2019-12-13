@@ -87,7 +87,8 @@ describe('Crawler', function() {
         "\n" +
         "http://other.co*|other \n" +
         "\n"
-      ) 
+      ),
+      defaultContentType: 'govcms_standard_page'
     };
     let instance = new Crawler('http://localhost/', settings);
 
