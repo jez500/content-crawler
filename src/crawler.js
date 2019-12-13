@@ -325,7 +325,7 @@ const Crawler = class {
             newpage.forms = [];
             newpage.body = '';
             newpage.mediaType = 'text/html';
-            newpage.contentType = 'govcms_standard_page';
+            newpage.contentType = this.settings.defaultContentType;
             newpage.fields = [];
             let parentPage = page.parent.split('/');
             let title = parentPage.pop();
@@ -859,7 +859,7 @@ const Crawler = class {
       }
     }
     // Fallback - always include it last.
-    valid.push({ search: '', type: 'govcms_standard_page', fields: [] });
+    valid.push({ search: '', type: this.settings.defaultContentType, fields: [] });
 
     return valid;
   }

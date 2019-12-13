@@ -26,6 +26,7 @@ const CrawlerSettings = require("./crawler-settings");
  * @param {boolean} simplifyStructure
  * @param {boolean} removeDuplicates
  * @param {string} contentMapping
+ * @param {string} defaultContentType
  * @param {string} removeElements
  * @param {string} process
  * @param {function} shortenUrl
@@ -51,6 +52,7 @@ window.crawl = function(url,
                         simplifyStructure,
                         removeDuplicates,
                         contentMapping,
+                        defaultContentType,
                         removeElements,
                         process,
                         shortenUrl,
@@ -72,6 +74,7 @@ window.crawl = function(url,
     simplifyStructure: simplifyStructure,
     removeDuplicates: removeDuplicates,
     contentMapping: contentMapping,
+    defaultContentType: defaultContentType,
     removeElements: removeElements,
     process: process,
     removeEmptyNodes: removeEmptyNodes,
@@ -106,6 +109,7 @@ window.crawl = function(url,
  * @param {boolean} simplifyStructure
  * @param {boolean} removeDuplicates
  * @param {string} contentMapping
+ * @param {string} defaultContentType
  * @param {string} removeElements
  * @param {string} process
  */
@@ -127,6 +131,7 @@ window.saveSettings = function(url,
                         simplifyStructure,
                         removeDuplicates,
                         contentMapping,
+                        defaultContentType,
                         removeElements,
                         process) {
 
@@ -149,6 +154,7 @@ window.saveSettings = function(url,
     simplifyStructure: simplifyStructure,
     removeDuplicates: removeDuplicates,
     contentMapping: contentMapping,
+    defaultContentType: defaultContentType,
     removeElements: removeElements,
     process: process,
   };

@@ -141,6 +141,7 @@ const Storage = class {
           this.removeAttributes = settings.removeAttributes;
           this.removeEmptyNodes = settings.removeEmptyNodes;
           this.contentMapping = settings.contentMapping;
+          this.defaultContentType = settings.defaultContentType;
           this.removeElements = settings.removeElements;
           this.process = settings.process;
 

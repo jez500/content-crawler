@@ -58,6 +58,7 @@ const UI = class {
         rawJSON: '',
         contentMapping: '',
         contentTypes: [],
+        defaultContentType: 'page',
         removeElements: 'nav, aside, .navbar, .Breadcrumbs, header, head, footer, script, oembed, noscript, style, iframe, object',
         process: '',
         domainToLoad: '',
@@ -241,6 +242,7 @@ const UI = class {
             simplifyStructure: this.simplifyStructure,
             removeDuplicates: this.removeDuplicates,
             contentMapping: this.contentMapping,
+            defaultContentType: this.defaultContentType,
             removeElements: this.removeElements,
             process: this.process,
             removeAttributes: this.removeAttributes,
@@ -385,6 +387,7 @@ const UI = class {
           this.simplifyStructure = settings.simplifyStructure;
           this.removeDuplicates = settings.removeDuplicates;
           this.contentMapping = settings.contentMapping;
+          this.defaultContentType = settings.defaultContentType;
           this.removeElements = settings.removeElements;
           this.process = settings.process;
 
@@ -416,6 +419,7 @@ const UI = class {
               this.simplifyStructure,
               this.removeDuplicates,
               this.contentMapping,
+              this.defaultContentType,
               this.removeElements,
               this.process);
         },
@@ -451,6 +455,7 @@ const UI = class {
               this.simplifyStructure,
               this.removeDuplicates,
               this.contentMapping,
+              this.defaultContentType,
               this.removeElements,
               this.process,
               this.shortenUrl,
@@ -590,6 +595,7 @@ const UI = class {
                   this.simplifyStructure = settings.simplifyStructure;
                   this.removeDuplicates = settings.removeDuplicates;
                   this.contentMapping = settings.contentMapping;
+                  this.defaultContentType = settings.defaultContentType;
                   this.removeElements = settings.removeElements;
                   this.process = settings.process;
 
